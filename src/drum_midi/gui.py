@@ -136,7 +136,9 @@ class DrumMidiApp:
         self.type_dropdown.grid(row=10, column=0, sticky="ew")
         self.type_dropdown.bind("<<ComboboxSelected>>", lambda _event: self.reassign_selected())
         self.export_button = ttk.Button(frame, text="Export MIDI", command=self.export)
-        self.export_button.grid(row=10, column=1, columnspan=2, sticky="ew")
+        self.export_button.grid(row=10, column=1, sticky="ew")
+        self.preview_button = ttk.Button(frame, text="Preview", command=self.preview)
+        self.preview_button.grid(row=10, column=2, sticky="ew")
 
         self.render_notes()
 
@@ -209,6 +211,18 @@ class DrumMidiApp:
         elif event.keysym in {str(i) for i in range(1, len(DRUM_TYPES) + 1)} and self.selected_note is not None:
             self.type_var.set(DRUM_TYPES[int(event.keysym) - 1])
             self.reassign_selected()
+
+    def preview(self):
+        if not self.notes:
+            self.result_var.set("Error: Process audio before previewing.")
+            return
+        try:
+            from drum_midi.preview import play_preview
+
+            path = play_preview(self.notes)
+            self.result_var.set(f"Preview playing ({Path(path).name}).")
+        except Exception as exc:
+            self.result_var.set(f"Error: {exc}")
 
     def export(self):
         if not self.notes:
