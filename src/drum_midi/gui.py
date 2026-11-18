@@ -87,7 +87,7 @@ class DrumMidiApp:
         self.tx_dropdown = ttk.Combobox(
             frame,
             textvariable=self.mode_tx_var,
-            values=["bands", "madmom", "adtof"],
+            values=["bands", "madmom", "adtof", "dettato"],
             state="readonly",
         )
         self.tx_dropdown.grid(row=3, column=1, columnspan=2, sticky="ew", padx=5, pady=4)

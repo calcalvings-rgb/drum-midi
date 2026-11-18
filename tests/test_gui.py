@@ -47,11 +47,12 @@ def test_gui_dropdown_options(root):
     assert "hpss" in sep_values
     assert "demucs" in sep_values
 
-    # Transcription options: bands, madmom, adtof
+    # Transcription options: bands, madmom, adtof, dettato
     tx_values = [str(v).lower() for v in app.tx_dropdown["values"]]
     assert "bands" in tx_values
     assert "madmom" in tx_values
     assert "adtof" in tx_values
+    assert "dettato" in tx_values
     assert app.mode_tx_var.get().lower() == "adtof"
 
     # Tempo entry default 120

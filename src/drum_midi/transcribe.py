@@ -9,6 +9,31 @@ from drum_midi.maps import DRUM_TYPES
 # Tuned against a pop cover reference: crash heavily over-fires at low thresholds.
 ADTOF_THRESHOLDS = [0.08, 0.08, 0.20, 0.08, 0.65]
 
+# dettato outputs GM drum keys directly; map the ones we model to app types.
+DETTATO_PITCH_TO_TYPE = {
+    27: "crash1",
+    28: "crash1",
+    29: "crash2",
+    30: "crash1",
+    36: "kick",
+    37: "side_stick",
+    38: "snare",
+    40: "rimshot",
+    41: "floor",
+    42: "hat_closed",
+    43: "floor",
+    44: "hat_open",
+    45: "rack2",
+    46: "hat_open",
+    47: "rack2",
+    48: "rack1",
+    49: "crash1",
+    50: "rack1",
+    51: "ride",
+    53: "ride_bell",
+    57: "crash2",
+}
+
 
 def transcribe_bands(x: np.ndarray | None, sr: int) -> list[dict]:
     """Transcribe drum hits from audio using band-split spectral flux.
@@ -198,6 +223,43 @@ def transcribe_adtof(
         return _parse_adtof_midi(midi_path, midi_pitch_to_type)
 
 
+_dettato_model: object | None = None
+
+
+def transcribe_dettato(x: np.ndarray | None, sr: int) -> list[dict]:
+    """Transcribe drums with dettato-drums (GM keys -> app types).
+
+    Requires the `dettato` package and a source recorded at >= 40 kHz.
+    The model is loaded once and cached.
+    """
+    if x is None:
+        return []
+    audio = np.asarray(x, dtype=np.float32)
+    if audio.ndim > 1:
+        audio = np.mean(audio, axis=-1)
+    if audio.size == 0 or np.max(np.abs(audio)) < 1e-4:
+        return []
+    if sr < 40000:
+        raise ValueError("dettato requires audio recorded at >= 40 kHz (drum model skipped below that).")
+
+    global _dettato_model
+    if _dettato_model is None:
+        try:
+            from dettato.drums import DrumTranscriber
+        except ImportError as exc:
+            raise ImportError("dettato transcription unavailable; install the dettato package.") from exc
+        _dettato_model = DrumTranscriber.from_pretrained("cpu")
+
+    hits = _dettato_model.transcribe(audio, sr=int(sr))
+    notes = []
+    for h in hits:
+        typ = DETTATO_PITCH_TO_TYPE.get(h["pitch"])
+        if typ:
+            notes.append({"type": typ, "onset_s": float(h["onset"]), "velocity": float(h["velocity"])})
+    notes.sort(key=lambda n: (n["onset_s"], n["type"]))
+    return notes
+
+
 def _parse_adtof_midi(path, pitch_to_type) -> list[dict]:
     data = path.read_bytes()
     div = int.from_bytes(data[12:14], "big")
@@ -272,6 +334,8 @@ def transcribe_dispatch(x: np.ndarray | None, sr: int, method: str = "bands") ->
         raise ImportError("madmom transcription is unavailable; install madmom to use method='madmom'.")
     if method == "adtof":
         return transcribe_adtof(x, sr)
+    if method == "dettato":
+        return transcribe_dettato(x, sr)
     raise ValueError(f"Unknown transcription method: {method}")
 
 
