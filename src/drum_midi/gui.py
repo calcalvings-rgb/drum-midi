@@ -48,6 +48,10 @@ class DrumMidiApp:
     def _build_ui(self) -> None:
         frame = ttk.Frame(self.root, padding="12 12 12 12")
         frame.grid(row=0, column=0, sticky="nsew")
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        frame.grid_rowconfigure(8, weight=1)
+        frame.grid_columnconfigure(1, weight=1)
 
         # Row 0: File picker
         ttk.Label(frame, text="Audio File:").grid(row=0, column=0, sticky="w", pady=4)
@@ -118,7 +122,7 @@ class DrumMidiApp:
         self.result_label.grid(row=7, column=0, columnspan=3, pady=6)
 
         self.roll = tk.Canvas(frame, width=600, height=260, background="white", highlightthickness=1, relief="solid", highlightbackground="#999")
-        self.roll.grid(row=8, column=0, columnspan=3, sticky="ew")
+        self.roll.grid(row=8, column=0, columnspan=3, sticky="nsew")
         self.roll_sbx = ttk.Scrollbar(frame, orient="horizontal", command=self.roll.xview)
         self.roll_sbx.grid(row=9, column=0, columnspan=3, sticky="ew")
         self.roll.configure(xscrollcommand=self.roll_sbx.set)
