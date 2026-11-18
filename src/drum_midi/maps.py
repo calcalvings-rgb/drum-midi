@@ -1,0 +1,53 @@
+"""MIDI drum note mapping presets and drum types."""
+
+DRUM_TYPES: list[str] = [
+    "kick",
+    "snare",
+    "side_stick",
+    "rimshot",
+    "hat_closed",
+    "hat_open",
+    "hat_pedal",
+    "rack1",
+    "rack2",
+    "floor",
+    "crash1",
+    "crash2",
+    "ride",
+    "ride_bell",
+]
+
+PRESETS: dict[str, dict[str, int]] = {
+    "gm": {
+        "kick": 36,
+        "snare": 38,
+        "side_stick": 37,
+        "rimshot": 40,
+        "hat_closed": 42,
+        "hat_open": 46,
+        "hat_pedal": 44,
+        "rack1": 48,
+        "rack2": 45,
+        "floor": 41,
+        "crash1": 49,
+        "crash2": 57,
+        "ride": 51,
+        "ride_bell": 53,
+    },
+    "mixwave_sleep_token": {
+        "kick": 36,
+        "snare": 38,
+        "side_stick": 37,
+        "rimshot": 40,
+        "hat_closed": 75,
+        "hat_open": 46,
+        "hat_pedal": 44,
+        "rack1": 50,
+        "rack2": 47,
+        "floor": 43,
+        "crash1": 49,
+        "crash2": 57,
+        "ride": 51,
+        "ride_bell": 53,
+    },
+}
