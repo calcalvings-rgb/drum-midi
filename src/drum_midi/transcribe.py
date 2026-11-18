@@ -137,6 +137,104 @@ def transcribe_bands(x: np.ndarray | None, sr: int) -> list[dict]:
     return notes
 
 
+def transcribe_adtof(x: np.ndarray | None, sr: int, threshold: float = 0.08) -> list[dict]:
+    """Transcribe drums using the vendored ADTOF model (lazy import, requires torch+librosa).
+
+    ADTOF (Zehren et al.) outputs 5 GM drum classes: 35 kick, 38 snare,
+    47 low tom, 42 closed hat, 49 crash.
+    """
+    if x is None:
+        return []
+    audio = np.asarray(x, dtype=np.float64)
+    if audio.ndim > 1:
+        audio = np.mean(audio, axis=-1)
+    if audio.size == 0 or np.max(np.abs(audio)) < 1e-4:
+        return []
+
+    try:
+        from drum_midi._vendor.adtof_pytorch import transcribe_to_midi
+    except ImportError as exc:
+        raise ImportError(
+            "ADTOF transcription unavailable; required deps (torch, librosa, pretty_midi) missing."
+        ) from exc
+
+    import tempfile
+    import wave
+    from pathlib import Path
+
+    midi_pitch_to_type = {
+        35: "kick",
+        38: "snare",
+        47: "floor",
+        42: "hat_closed",
+        49: "crash1",
+    }
+
+    with tempfile.TemporaryDirectory() as tmp:
+        wav_path = Path(tmp) / "in.wav"
+        midi_path = Path(tmp) / "out.mid"
+        pcm = np.clip(audio, -1.0, 1.0)
+        pcm = (pcm * 32767).astype("<i2")
+        with wave.open(str(wav_path), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(sr)
+            w.writeframes(pcm.tobytes())
+        transcribe_to_midi(str(wav_path), str(midi_path), threshold=threshold, device="cpu")
+        return _parse_adtof_midi(midi_path, midi_pitch_to_type)
+
+
+def _parse_adtof_midi(path, pitch_to_type) -> list[dict]:
+    data = path.read_bytes()
+    div = int.from_bytes(data[12:14], "big")
+    off = 14
+    notes = []
+    for _ in range(data.count(b"MTrk")):
+        ln = int.from_bytes(data[off + 4 : off + 8], "big")
+        trk = data[off + 8 : off + 8 + ln]
+        off += 8 + ln
+        i = 0
+        t = 0
+        status = None
+        while i < len(trk):
+            v = 0
+            sh = 0
+            while True:
+                b = trk[i]
+                i += 1
+                v |= (b & 0x7F) << sh
+                sh += 7
+                if not b & 0x80:
+                    break
+            t += v
+            if trk[i] & 0x80:
+                status = trk[i]
+                i += 1
+            st = status
+            if st == 0xFF:
+                typ = trk[i]
+                i += 1
+                ln2 = trk[i]
+                i += 1
+                i += ln2
+                continue
+            if st in (0xF0, 0xF7):
+                continue
+            d1 = trk[i]
+            i += 1
+            if (st & 0xF0) in (0xC0, 0xD0):
+                continue
+            d2 = trk[i]
+            i += 1
+            if (st & 0xF0) == 0x90 and d2 > 0:
+                onset = t / div
+                typ = pitch_to_type.get(d1)
+                if typ:
+                    notes.append({"type": typ, "onset_s": onset, "velocity": float(d2)})
+    notes.sort(key=lambda n: (n["onset_s"], n["type"]))
+    return notes
+
+
 def transcribe_dispatch(x: np.ndarray | None, sr: int, method: str = "bands") -> list[dict]:
     """Dispatch transcription to the specified backend.
 
@@ -147,7 +245,7 @@ def transcribe_dispatch(x: np.ndarray | None, sr: int, method: str = "bands") ->
     sr : int
         Sample rate in Hz.
     method : str
-        Transcription backend ('bands' or 'madmom').
+        Transcription backend ('bands', 'madmom', or 'adtof').
 
     Returns
     -------
@@ -158,6 +256,8 @@ def transcribe_dispatch(x: np.ndarray | None, sr: int, method: str = "bands") ->
         return transcribe_bands(x, sr)
     if method == "madmom":
         raise ImportError("madmom transcription is unavailable; install madmom to use method='madmom'.")
+    if method == "adtof":
+        return transcribe_adtof(x, sr)
     raise ValueError(f"Unknown transcription method: {method}")
 
 

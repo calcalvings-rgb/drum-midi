@@ -71,8 +71,11 @@ def _read_wav_mono(path):
 
     with wave.open(str(path), "rb") as w:
         sr = w.getframerate()
-        frames = w.readframes(w.getnframes())
-    return sr, np.frombuffer(frames, dtype="<i2").astype(np.float64) / 32767
+        nch = w.getnchannels()
+        frames = np.frombuffer(w.readframes(w.getnframes()), dtype="<i2")
+    if nch > 1:
+        frames = frames.reshape(-1, nch).mean(axis=1)
+    return sr, frames.astype(np.float64) / 32767
 
 
 def separate(x: np.ndarray, sr: int, method: str) -> np.ndarray:
