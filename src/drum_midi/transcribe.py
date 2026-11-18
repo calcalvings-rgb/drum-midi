@@ -51,6 +51,26 @@ THRESHOLD_PRESETS = {
         "adtof": [0.08, 0.08, 0.20, 0.08, 0.35],
         "dettato": DETTATO_THRESHOLDS,
     },
+    # dettato on GPU: dense base + per-type velocity floor. dettato's single
+    # th_kit can't raise snare/tom without also exploding hat_open/crash, so we
+    # catch everything at th=0.5 then drop the low-velocity over-detected
+    # types (their velocity tails are well-separated from real hits).
+    "dettato-gpu": {
+        "dettato": {
+            "kit": 0.5,
+            "drum": 0.5,
+            "timpani": 0.5,
+            "router": 0.5,
+            "vel_floor": {
+                "hat_open": 0.77,
+                "ride": 0.74,
+                "hat_closed": 0.68,
+                "crash1": 0.82,
+                "crash2": 0.75,
+                "rimshot": 0.80,
+            },
+        },
+    },
     "sparse": {
         "adtof": [0.10, 0.10, 0.28, 0.10, 0.80],
         "dettato": {"kit": 0.8, "drum": 0.6, "timpani": 0.6, "router": 0.5},
@@ -292,6 +312,12 @@ def transcribe_dettato(x: np.ndarray | None, sr: int, thresholds: dict | None = 
         if typ:
             notes.append({"type": typ, "onset_s": float(h["onset"]), "velocity": float(h["velocity"])})
     notes.sort(key=lambda n: (n["onset_s"], n["type"]))
+
+    # Optional per-type velocity floor: drops low-confidence over-detected hits
+    # (e.g. hat_open/crash tails) while keeping high-confident snare/tom/kick.
+    vel_floor = (thresholds or {}).get("vel_floor")
+    if vel_floor:
+        notes = [n for n in notes if n["velocity"] >= vel_floor.get(n["type"], 0.0)]
     return notes
 
 

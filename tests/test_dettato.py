@@ -45,6 +45,19 @@ def test_dettato_threshold_presets_affect_count():
     assert len(sparse) <= len(dense)
 
 
+def test_dettato_gpu_preset_filters_low_velocity():
+    pytest.importorskip("dettato")
+    sr, clip = _drums_clip()
+    dense = transcribe_dettato(clip, sr, thresholds=DETTATO_THRESHOLDS)
+    cfg = THRESHOLD_PRESETS["dettato-gpu"]["dettato"]
+    gpu = transcribe_dettato(clip, sr, thresholds=cfg)
+    assert len(gpu) <= len(dense)
+    floor = cfg["vel_floor"]
+    for n in gpu:
+        if n["type"] in floor:
+            assert n["velocity"] >= floor[n["type"]]
+
+
 def test_transcribe_dispatch_dettato_preset():
     pytest.importorskip("dettato")
     sr, clip = _drums_clip()
