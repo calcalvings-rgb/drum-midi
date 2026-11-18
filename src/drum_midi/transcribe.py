@@ -2,6 +2,7 @@
 
 import numpy as np
 from scipy import signal
+from typing import Any
 
 from drum_midi.maps import DRUM_TYPES
 
@@ -32,6 +33,28 @@ DETTATO_PITCH_TO_TYPE = {
     51: "ride",
     53: "ride_bell",
     57: "crash2",
+}
+
+# Default dettato thresholds (loaded weights) — model attrs `th_kit`, `th_drum`,
+# `th_timpani`, `th_router` are overwritten per preset.
+DETTATO_THRESHOLDS = {"kit": 0.5, "drum": 0.5, "timpani": 0.5, "router": 0.5}
+
+# Named threshold presets, one entry per backend. Backends have incompatible
+# threshold shapes (ADTOF: list of 5 class thresholds; dettato: dict).
+# "tuned-mixwave" matches the pop cover reference distribution.
+THRESHOLD_PRESETS = {
+    "tuned-mixwave": {
+        "adtof": ADTOF_THRESHOLDS,
+        "dettato": {"kit": 0.7, "drum": 0.5, "timpani": 0.5, "router": 0.5},
+    },
+    "dense": {
+        "adtof": [0.08, 0.08, 0.20, 0.08, 0.35],
+        "dettato": DETTATO_THRESHOLDS,
+    },
+    "sparse": {
+        "adtof": [0.10, 0.10, 0.28, 0.10, 0.80],
+        "dettato": {"kit": 0.8, "drum": 0.6, "timpani": 0.6, "router": 0.5},
+    },
 }
 
 
@@ -223,14 +246,15 @@ def transcribe_adtof(
         return _parse_adtof_midi(midi_path, midi_pitch_to_type)
 
 
-_dettato_model: object | None = None
+_dettato_model: Any = None
 
 
-def transcribe_dettato(x: np.ndarray | None, sr: int) -> list[dict]:
+def transcribe_dettato(x: np.ndarray | None, sr: int, thresholds: dict | None = None) -> list[dict]:
     """Transcribe drums with dettato-drums (GM keys -> app types).
 
     Requires the `dettato` package and a source recorded at >= 40 kHz.
-    The model is loaded once and cached.
+    The model is loaded once and cached; optional ``thresholds`` dict keys
+    (kit/drum/timpani/router) override the model's thresholds for this call.
     """
     if x is None:
         return []
@@ -249,6 +273,12 @@ def transcribe_dettato(x: np.ndarray | None, sr: int) -> list[dict]:
         except ImportError as exc:
             raise ImportError("dettato transcription unavailable; install the dettato package.") from exc
         _dettato_model = DrumTranscriber.from_pretrained("cpu")
+
+    if thresholds:
+        _dettato_model.th_kit = float(thresholds.get("kit", _dettato_model.th_kit))
+        _dettato_model.th_drum = float(thresholds.get("drum", _dettato_model.th_drum))
+        _dettato_model.th_timpani = float(thresholds.get("timpani", _dettato_model.th_timpani))
+        _dettato_model.th_router = float(thresholds.get("router", _dettato_model.th_router))
 
     hits = _dettato_model.transcribe(audio, sr=int(sr))
     notes = []
@@ -311,50 +341,32 @@ def _parse_adtof_midi(path, pitch_to_type) -> list[dict]:
     return notes
 
 
-def transcribe_dispatch(x: np.ndarray | None, sr: int, method: str = "bands") -> list[dict]:
+def transcribe_dispatch(
+    x: np.ndarray | None, sr: int, method: str = "bands", threshold_preset: str = "tuned-mixwave"
+) -> list[dict]:
     """Dispatch transcription to the specified backend.
 
-    Parameters
-    ----------
-    x : np.ndarray or None
-        Audio signal.
-    sr : int
-        Sample rate in Hz.
-    method : str
-        Transcription backend ('bands', 'madmom', or 'adtof').
-
-    Returns
-    -------
-    list[dict]
-        Transcribed drum notes.
+    ``threshold_preset`` names an entry in :data:`THRESHOLD_PRESETS`; the
+    backend-specific threshold config for ``method`` is passed through.
     """
+    config = THRESHOLD_PRESETS.get(threshold_preset, {}).get(method)
     if method == "bands":
         return transcribe_bands(x, sr)
     if method == "madmom":
         raise ImportError("madmom transcription is unavailable; install madmom to use method='madmom'.")
     if method == "adtof":
-        return transcribe_adtof(x, sr)
+        return transcribe_adtof(x, sr, thresholds=config) if config else transcribe_adtof(x, sr)
     if method == "dettato":
-        return transcribe_dettato(x, sr)
+        return transcribe_dettato(x, sr, thresholds=config) if config else transcribe_dettato(x, sr)
     raise ValueError(f"Unknown transcription method: {method}")
 
 
-def transcribe(x: np.ndarray | None, sr: int, method: str = "bands") -> list[dict]:
+def transcribe(
+    x: np.ndarray | None, sr: int, method: str = "bands", threshold_preset: str = "tuned-mixwave"
+) -> list[dict]:
     """Transcribe percussion audio into drum events.
 
-    Parameters
-    ----------
-    x : np.ndarray or None
-        Audio signal (1D mono or 2D multichannel).
-    sr : int
-        Sample rate in Hz.
-    method : str
-        Transcription method (default: 'bands').
-
-    Returns
-    -------
-    list[dict]
-        List of note dicts: {'type': str, 'onset_s': float, 'velocity': float},
-        sorted by onset ascending.
+    ``threshold_preset`` selects the per-backend threshold preset
+    (see ``THRESHOLD_PRESETS``).
     """
-    return transcribe_dispatch(x, sr, method=method)
+    return transcribe_dispatch(x, sr, method=method, threshold_preset=threshold_preset)

@@ -10,7 +10,7 @@ from drum_midi.editor import delete_note, move_note, reassign_note
 from drum_midi.maps import DRUM_TYPES, PRESETS
 from drum_midi.midi_out import write_midi
 from drum_midi.separate import separate
-from drum_midi.transcribe import transcribe
+from drum_midi.transcribe import THRESHOLD_PRESETS, transcribe
 
 
 class DrumMidiApp:
@@ -50,7 +50,7 @@ class DrumMidiApp:
         frame.grid(row=0, column=0, sticky="nsew")
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
-        frame.grid_rowconfigure(8, weight=1)
+        frame.grid_rowconfigure(9, weight=1)
         frame.grid_columnconfigure(1, weight=1)
 
         # Row 0: File picker
@@ -93,38 +93,49 @@ class DrumMidiApp:
         self.tx_dropdown.grid(row=3, column=1, columnspan=2, sticky="ew", padx=5, pady=4)
         self.mode_tx_dropdown = self.tx_dropdown
 
-        # Row 4: Kit dropdown
-        ttk.Label(frame, text="Kit Output:").grid(row=4, column=0, sticky="w", pady=4)
+        # Row 4: Threshold preset dropdown
+        ttk.Label(frame, text="Threshold Preset:").grid(row=4, column=0, sticky="w", pady=4)
+        self.threshold_preset_var = tk.StringVar(value="tuned-mixwave")
+        self.threshold_preset_dropdown = ttk.Combobox(
+            frame,
+            textvariable=self.threshold_preset_var,
+            values=list(THRESHOLD_PRESETS),
+            state="readonly",
+        )
+        self.threshold_preset_dropdown.grid(row=4, column=1, columnspan=2, sticky="ew", padx=5, pady=4)
+
+        # Row 5: Kit dropdown
+        ttk.Label(frame, text="Kit Output:").grid(row=5, column=0, sticky="w", pady=4)
         self.kit_dropdown = ttk.Combobox(
             frame,
             textvariable=self.kit_var,
             values=self.kit_options,
             state="readonly",
         )
-        self.kit_dropdown.grid(row=4, column=1, columnspan=2, sticky="ew", padx=5, pady=4)
+        self.kit_dropdown.grid(row=5, column=1, columnspan=2, sticky="ew", padx=5, pady=4)
 
-        # Row 5: Tempo entry
-        ttk.Label(frame, text="Tempo (BPM):").grid(row=5, column=0, sticky="w", pady=4)
+        # Row 6: Tempo entry
+        ttk.Label(frame, text="Tempo (BPM):").grid(row=6, column=0, sticky="w", pady=4)
         self.tempo_entry = ttk.Entry(frame, textvariable=self.tempo_var, width=12)
-        self.tempo_entry.grid(row=5, column=1, sticky="w", padx=5, pady=4)
+        self.tempo_entry.grid(row=6, column=1, sticky="w", padx=5, pady=4)
 
-        # Row 6: Process button
+        # Row 7: Process button
         self.process_button = ttk.Button(frame, text="Process", command=self.process)
-        self.process_button.grid(row=6, column=0, columnspan=3, pady=10)
+        self.process_button.grid(row=7, column=0, columnspan=3, pady=10)
 
-        # Row 7: Result label
+        # Row 8: Result label
         self.result_label = ttk.Label(
             frame,
             textvariable=self.result_var,
             wraplength=400,
             font=("TkDefaultFont", 9, "bold"),
         )
-        self.result_label.grid(row=7, column=0, columnspan=3, pady=6)
+        self.result_label.grid(row=8, column=0, columnspan=3, pady=6)
 
         self.roll = tk.Canvas(frame, width=600, height=260, background="white", highlightthickness=1, relief="solid", highlightbackground="#999")
-        self.roll.grid(row=8, column=0, columnspan=3, sticky="nsew")
+        self.roll.grid(row=9, column=0, columnspan=3, sticky="nsew")
         self.roll_sbx = ttk.Scrollbar(frame, orient="horizontal", command=self.roll.xview)
-        self.roll_sbx.grid(row=9, column=0, columnspan=3, sticky="ew")
+        self.roll_sbx.grid(row=10, column=0, columnspan=3, sticky="ew")
         self.roll.configure(xscrollcommand=self.roll_sbx.set)
         self.roll.bind("<Button-1>", self.on_canvas_click)
         self.roll.bind("<B1-Motion>", self.on_drag)
@@ -133,12 +144,12 @@ class DrumMidiApp:
         self.roll.bind("<KeyPress>", self._on_key)
         self.type_var = tk.StringVar(value=DRUM_TYPES[0])
         self.type_dropdown = ttk.Combobox(frame, textvariable=self.type_var, values=DRUM_TYPES, state="readonly")
-        self.type_dropdown.grid(row=10, column=0, sticky="ew")
+        self.type_dropdown.grid(row=11, column=0, sticky="ew")
         self.type_dropdown.bind("<<ComboboxSelected>>", lambda _event: self.reassign_selected())
         self.export_button = ttk.Button(frame, text="Export MIDI", command=self.export)
-        self.export_button.grid(row=10, column=1, sticky="ew")
+        self.export_button.grid(row=11, column=1, sticky="ew")
         self.preview_button = ttk.Button(frame, text="Preview", command=self.preview)
-        self.preview_button.grid(row=10, column=2, sticky="ew")
+        self.preview_button.grid(row=11, column=2, sticky="ew")
 
         self.render_notes()
 
@@ -262,6 +273,7 @@ class DrumMidiApp:
         sep_mode = self.mode_sep_var.get().strip().lower()
         tx_mode = self.mode_tx_var.get().strip().lower()
         preset = self.kit_var.get().strip()
+        threshold_preset = self.threshold_preset_var.get().strip() or "tuned-mixwave"
 
         try:
             tempo = int(float(self.tempo_var.get().strip()))
@@ -281,7 +293,7 @@ class DrumMidiApp:
             detected = detect_stem(audio, sr) if input_mode == "auto" else input_mode
             if detected == "full":
                 audio = separate(audio, sr, sep_mode)
-            self.notes = transcribe(audio, sr, method=tx_mode)
+            self.notes = transcribe(audio, sr, method=tx_mode, threshold_preset=threshold_preset)
             self.selected_note = None
             self.render_notes()
             self.result_var.set(f"Completed! {len(self.notes)} notes ready to edit and export.")

@@ -53,6 +53,13 @@ def test_gui_dropdown_options(root):
     assert "madmom" in tx_values
     assert "adtof" in tx_values
     assert "dettato" in tx_values
+
+    # Threshold preset dropdown exists, defaults to tuned-mixwave, lists presets
+    from drum_midi.transcribe import THRESHOLD_PRESETS
+
+    assert "tuned-mixwave" in app.threshold_preset_dropdown["values"]
+    assert set(app.threshold_preset_dropdown["values"]) == set(THRESHOLD_PRESETS)
+    assert app.threshold_preset_var.get() == "tuned-mixwave"
     assert app.mode_tx_var.get().lower() == "adtof"
 
     # Tempo entry default 120
