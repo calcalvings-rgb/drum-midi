@@ -1,5 +1,9 @@
 """Drum audio transcription using band-split onset detection."""
 
+import os
+import sys
+from pathlib import Path
+
 import numpy as np
 from scipy import signal
 from typing import Any
@@ -75,6 +79,12 @@ THRESHOLD_PRESETS = {
         "adtof": [0.10, 0.10, 0.28, 0.10, 0.80],
         "dettato": {"kit": 0.8, "drum": 0.6, "timpani": 0.6, "router": 0.5},
     },
+    # STRUM (hybrid V14+Phase3 MC). 8 lanes -> app types. The MC rescue
+    # threshold trades recall (lower = more overlap caught, more FP) vs
+    # precision. "recall" preset prioritizes catching every hit (overlap),
+    # "balanced" reduces false positives at the cost of missing some overlap.
+    "strum-recall": {"strum": {"mc_rescue_thr": 0.4}},
+    "strum-balanced": {"strum": {"mc_rescue_thr": 0.5}},
 }
 
 
@@ -321,6 +331,161 @@ def transcribe_dettato(x: np.ndarray | None, sr: int, thresholds: dict | None = 
     return notes
 
 
+# STRUM lane index -> app type (STRUM orders: Kick, Snare, HiHat, HighTom,
+# Ride, LowTom, Crash, FloorTom).
+STRUM_LANE_TO_TYPE = ["kick", "snare", "hat_closed", "rack1", "ride", "rack2", "crash1", "floor"]
+
+# Path to the STRUM checkout (V14 + Phase3 checkpoints). Override via env.
+_STRUM_ROOT = os.environ.get(
+    "STRUM_ROOT", str(Path(__file__).resolve().parents[3] / "strum")
+)
+_strum_models: dict | None = None
+
+
+def transcribe_strum(x: np.ndarray | None, sr: int, mc_rescue_thr: float = 0.4) -> list[dict]:
+    """Transcribe drums with STRUM (V14 onset + Phase3 multi-class rescue).
+
+    STRUM's V14 CRNN detects onsets (high recall); the Phase3 multi-class head
+    provides per-class onset probabilities, so simultaneous hits (e.g. kick +
+    snare + crash at one instant) are emitted as multiple events instead of
+    being collapsed into one. ``mc_rescue_thr`` is the per-class probability
+    threshold at which an extra class is added to an already-detected onset
+    frame (lower catches more overlap, more false positives).
+    """
+    if x is None:
+        return []
+    audio = np.asarray(x, dtype=np.float32)
+    if audio.ndim > 1:
+        audio = np.mean(audio, axis=-1)
+    if audio.size == 0 or np.max(np.abs(audio)) < 1e-4:
+        return []
+    if sr != 44100:
+        import librosa as _librosa
+        audio = _librosa.resample(audio, orig_sr=sr, target_sr=44100)
+        sr = 44100
+
+    global _strum_models
+    if _strum_models is None:
+        try:
+            import torch as _torch
+            import torchaudio as _torchaudio  # noqa: F401
+            import scipy.signal as _sig  # noqa: F401
+            import librosa as _librosa  # noqa: F401
+        except ImportError as exc:
+            raise ImportError(
+                "STRUM transcription requires torch/torchaudio/scipy/librosa."
+            ) from exc
+        try:
+            sys.path.insert(0, str(_STRUM_ROOT))
+            from src.models.drums_v13 import TwoStageDrumsCRNN  # type: ignore
+        except ImportError as exc:
+            raise ImportError(
+                f"STRUM checkout not found at {_STRUM_ROOT!r}; set STRUM_ROOT."
+            ) from exc
+        device = "cuda" if _torch.cuda.is_available() else "cpu"
+        model_kw = dict(
+            n_mels=128, conv_channels=[64, 128, 256, 512],
+            freq_subbands=[32, 64, 96, 128], subband_proj_dim=256,
+            lstm_hidden=640, lstm_layers=3,
+            attention_heads=10, attention_type="flash", attention_window=512,
+            dropout=0.0, onset_detector_hidden=320, classifier_hidden=640,
+            num_classes=8, predict_velocity=False,
+        )
+        v14 = TwoStageDrumsCRNN(**model_kw)
+        v14_ckpt = _torch.load(
+            str(Path(_STRUM_ROOT) / "checkpoints" / "drums_v14" / "best.pt"),
+            map_location=device, weights_only=False,
+        )
+        cfg_v = v14_ckpt.get("config", {}).get("model", {})
+        for k in ("conv_channels", "freq_subbands", "subband_proj_dim", "lstm_hidden",
+                  "lstm_layers", "attention_heads", "attention_type", "attention_window",
+                  "onset_detector_hidden", "classifier_hidden"):
+            if k in cfg_v:
+                model_kw[k] = cfg_v[k]
+        v14 = TwoStageDrumsCRNN(**model_kw)
+        v14.load_state_dict(v14_ckpt["model_state_dict"], strict=False)
+        v14 = v14.to(device).eval()
+        p3 = TwoStageDrumsCRNN(**model_kw)
+        p3.add_multiclass_onset_head()
+        p3_ckpt = _torch.load(
+            str(Path(_STRUM_ROOT) / "checkpoints" / "drums_phase3" / "best.pt"),
+            map_location=device, weights_only=False,
+        )
+        cfg_p = p3_ckpt.get("config", {}).get("model", {})
+        for k in ("conv_channels", "freq_subbands", "subband_proj_dim", "lstm_hidden",
+                  "lstm_layers", "attention_heads", "attention_type", "attention_window",
+                  "onset_detector_hidden", "classifier_hidden"):
+            if k in cfg_p:
+                model_kw[k] = cfg_p[k]
+        p3 = TwoStageDrumsCRNN(**model_kw)
+        p3.add_multiclass_onset_head()
+        p3.load_state_dict(p3_ckpt["model_state_dict"], strict=False)
+        p3 = p3.to(device).eval()
+        _strum_models = {"v14": v14, "p3": p3, "device": device}
+
+    v14 = _strum_models["v14"]
+    p3 = _strum_models["p3"]
+    device = _strum_models["device"]
+
+    import torch as _torch
+    import torchaudio as _torchaudio
+    import librosa as _librosa
+    from scipy.signal import find_peaks
+
+    audio_t = _torch.from_numpy(audio).unsqueeze(0)
+    mel_t = _torchaudio.transforms.MelSpectrogram(
+        sample_rate=44100, n_fft=2048, hop_length=512, n_mels=128
+    )
+    mel = _torch.log(mel_t(audio_t) + 1e-8)
+    tf = mel.shape[-1]
+    seg_frames = int(10.0 * 44100 / 512)
+    hop_frames = seg_frames // 2
+    onset_probs = np.zeros(tf)
+    mc = np.zeros((tf, 8))
+    cnt = np.zeros(tf)
+    with _torch.no_grad():
+        for st in range(0, tf, hop_frames):
+            en = min(st + seg_frames, tf)
+            seg = mel[:, :, st:en]
+            if seg.shape[-1] < seg_frames:
+                seg = _torch.nn.functional.pad(seg, (0, seg_frames - seg.shape[-1]))
+            seg = seg.unsqueeze(0).to(device)
+            o1 = v14(seg)
+            o2 = p3(seg)
+            p1 = o1["onset_probs"].squeeze(0).squeeze(-1).cpu().numpy()
+            p2 = o2["mc_onset_probs"].squeeze(0).cpu().numpy()
+            a = min(en - st, len(p1), p2.shape[0])
+            onset_probs[st:st + a] += p1[:a]
+            mc[st:st + a] += p2[:a]
+            cnt[st:st + a] += 1
+    cnt = np.maximum(cnt, 1)
+    onset_probs /= cnt
+    mc /= cnt[:, None]
+
+    min_dist = max(1, int(20 / 1000 * 44100 / 512))
+    v14_peaks, _ = find_peaks(onset_probs, height=0.3, distance=min_dist)
+    final: dict[int, set] = {}
+    for f in v14_peaks:
+        final[f] = {int(np.argmax(mc[f]))}
+    for f in v14_peaks:
+        primary = int(np.argmax(mc[f]))
+        for c in range(8):
+            if c != primary and mc[f, c] >= mc_rescue_thr:
+                final[f].add(c)
+
+    notes = []
+    for f, cs in final.items():
+        onset = f * 512 / 44100
+        idx_start = max(0, int(onset * 44100))
+        idx_end = min(len(audio), idx_start + int(0.08 * 44100))
+        seg_audio = audio[idx_start:idx_end]
+        vel = round(float(np.clip(np.max(np.abs(seg_audio)) if len(seg_audio) > 0 else 0.5, 0.01, 1.0)), 4)
+        for c in sorted(cs):
+            notes.append({"type": STRUM_LANE_TO_TYPE[c], "onset_s": round(onset, 4), "velocity": vel})
+    notes.sort(key=lambda n: (n["onset_s"], n["type"]))
+    return notes
+
+
 def _parse_adtof_midi(path, pitch_to_type) -> list[dict]:
     data = path.read_bytes()
     div = int.from_bytes(data[12:14], "big")
@@ -389,6 +554,9 @@ def transcribe_dispatch(
         return transcribe_adtof(x, sr, thresholds=config) if config else transcribe_adtof(x, sr)
     if method == "dettato":
         return transcribe_dettato(x, sr, thresholds=config) if config else transcribe_dettato(x, sr)
+    if method == "strum":
+        mc_thr = (config or {}).get("mc_rescue_thr", 0.4)
+        return transcribe_strum(x, sr, mc_rescue_thr=mc_thr)
     raise ValueError(f"Unknown transcription method: {method}")
 
 
