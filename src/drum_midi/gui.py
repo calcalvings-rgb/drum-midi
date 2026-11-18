@@ -117,7 +117,7 @@ class DrumMidiApp:
         )
         self.result_label.grid(row=7, column=0, columnspan=3, pady=6)
 
-        self.roll = tk.Canvas(frame, width=600, height=260, background="white")
+        self.roll = tk.Canvas(frame, width=600, height=260, background="white", highlightthickness=1, relief="solid", highlightbackground="#999")
         self.roll.grid(row=8, column=0, columnspan=3, sticky="ew")
         self.roll.bind("<Button-1>", self.on_canvas_click)
         self.roll.bind("<B1-Motion>", self.on_drag)
@@ -131,11 +131,18 @@ class DrumMidiApp:
         self.export_button = ttk.Button(frame, text="Export MIDI", command=self.export)
         self.export_button.grid(row=9, column=1, columnspan=2, sticky="ew")
 
+        self.render_notes()
+
     def render_notes(self) -> None:
         self.roll.delete("all")
         for row, kind in enumerate(DRUM_TYPES):
             y = row * 18
             self.roll.create_text(4, y + 8, text=kind, anchor="w", fill="#555")
+        if not self.notes:
+            self.roll.create_text(
+                350, 130, text="No notes yet — click Process to transcribe audio",
+                fill="#999",
+            )
         for i, note in enumerate(self.notes):
             x = 100 + note["onset_s"] / self.seconds_per_pixel
             y = DRUM_TYPES.index(note["type"]) * 18
@@ -249,5 +256,8 @@ class DrumMidiApp:
 def main() -> None:
     """Launch the Drum-to-MIDI application."""
     root = tk.Tk()
+    root.title("Drum → MIDI")
+    root.geometry("680x600")
+    root.minsize(640, 560)
     DrumMidiApp(root)
     root.mainloop()
