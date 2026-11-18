@@ -22,7 +22,7 @@ Pilih file audio, mode pipeline, preset kit, dan tempo, lalu klik **Process**. H
 
 1. **Input** — `auto` mendeteksi apakah audio terdengar seperti drum stem atau full mix; `stem` dan `full` memaksa klasifikasi.
 2. **Separation** — pada input full, `none` memakai mix apa adanya, `HPSS` menonjolkan bagian percussive, dan `Demucs` memilih backend opsional. Input yang dikenali sebagai stem melewati separation.
-3. **Transcription** — `bands` memakai deteksi onset berbasis pita frekuensi; `madmom` memilih backend opsional.
+3. **Transcription** — `bands` memakai deteksi onset berbasis pita frekuensi (ringan, kasar untuk full mix); `ADTOF` memakai model drum terlatih (Zehren et al., 5 kelas: kick/snare/tom/hat/crash) — akurat untuk full mix; `madmom` backend opsional.
 4. **Output** — MIDI Type 1, tempo awal 120 BPM, dengan track terpisah per tipe drum.
 
 `auto` dan `bands` adalah pilihan ringan yang tersedia tanpa model ML. Hasil mode ringan berupa estimasi onset dan bisa kurang akurat pada mix yang padat.
@@ -48,6 +48,7 @@ py -3.11 -m venv .venv
 - **MP3/format non-WAV:** pasang FFmpeg dan pastikan `ffmpeg` tersedia di PATH. Decoder baru dipanggil saat input non-WAV diminta.
 - **Demucs:** pasang dengan `.venv\Scripts\python.exe -m pip install demucs`; pilih separation `Demucs` saat diperlukan.
 - **madmom:** pasang dengan `.venv\Scripts\python.exe -m pip install madmom`; pilih transcription `madmom` saat diperlukan. Ketersediaan instalasi dapat bergantung pada versi Python dan platform.
+- **ADTOF:** model sudah di-vendor di `src/drum_midi/_vendor/adtof_pytorch` (termasuk bobot). Cukup pastikan `torch`, `librosa`, dan `pretty_midi` terpasang; pilih transcription `ADTOF`.
 
 Aplikasi tidak memasang paket opsional secara otomatis. Jika backend belum terpasang, aplikasi memberi pesan instalasi saat mode itu dipilih.
 
