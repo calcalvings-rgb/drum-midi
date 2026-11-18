@@ -272,7 +272,12 @@ def transcribe_dettato(x: np.ndarray | None, sr: int, thresholds: dict | None = 
             from dettato.drums import DrumTranscriber
         except ImportError as exc:
             raise ImportError("dettato transcription unavailable; install the dettato package.") from exc
-        _dettato_model = DrumTranscriber.from_pretrained("cpu")
+        try:
+            import torch as _torch
+        except ImportError:
+            _torch = None
+        device = "cuda" if (_torch is not None and _torch.cuda.is_available()) else "cpu"
+        _dettato_model = DrumTranscriber.from_pretrained(device)
 
     if thresholds:
         _dettato_model.th_kit = float(thresholds.get("kit", _dettato_model.th_kit))
