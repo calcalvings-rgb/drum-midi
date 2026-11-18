@@ -128,7 +128,7 @@ def test_select_and_reassign_changes_type(root):
     app = DrumMidiApp(root)
     app.notes = [{"type": "kick", "onset_s": 0.5, "velocity": 0.8}]
     app.render_notes()
-    app.on_canvas_click(type("Event", (), {"x": 151, "y": 9})())
+    app.on_canvas_click(type("Event", (), {"x": 202, "y": 8})())
     app.reassign_selected("snare")
     assert app.notes[0]["type"] == "snare"
 
