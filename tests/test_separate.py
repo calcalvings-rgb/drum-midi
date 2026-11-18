@@ -45,10 +45,19 @@ def test_hpss_dispatch_matches_percussive_extraction():
     np.testing.assert_array_equal(separate(x, 44100, "hpss"), separate_percussive(x, 44100))
 
 
-def test_demucs_is_lazy_and_has_install_guidance():
-    with pytest.raises(ImportError, match="demucs") as exc:
-        separate(np.zeros(16), 44100, "demucs")
-    assert "install" in str(exc.value).lower()
+def test_demucs_dispatch_routes_to_real_backend(monkeypatch):
+    import drum_midi.separate as sep_mod
+
+    calls = []
+
+    def fake(x, sr):
+        calls.append((x, sr))
+        return x
+
+    monkeypatch.setattr(sep_mod, "separate_demucs", fake)
+    out = separate(np.zeros(16), 44100, "demucs")
+    assert len(calls) == 1
+    np.testing.assert_array_equal(out, np.zeros(16))
 
 
 def test_unknown_method_raises_value_error():
