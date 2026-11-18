@@ -138,7 +138,11 @@ class DrumMidiApp:
         for row, kind in enumerate(DRUM_TYPES):
             y = row * 18
             self.roll.create_text(4, y + 8, text=kind, anchor="w", fill="#555")
-        if not self.notes:
+        if self.notes:
+            dur = max(note["onset_s"] for note in self.notes) + 2.0
+            width = self.roll.winfo_width() or 600
+            self.seconds_per_pixel = dur / max(width - 110, 50)
+        else:
             self.roll.create_text(
                 350, 130, text="No notes yet — click Process to transcribe audio",
                 fill="#999",
