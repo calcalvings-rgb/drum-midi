@@ -106,17 +106,23 @@ def write_preview_wav(notes: list[dict], path: str | Path) -> str:
 
 
 def play_preview(notes: list[dict], path: str | Path | None = None) -> str:
-    """Render and play (async, non-blocking). Returns the wav path."""
+    """Render then play via a detached PowerShell SoundPlayer process.
+
+    winsound's SND_SYNC was found to hang indefinitely inside a Tk process,
+    so playback is delegated to a separate process (zero new dependencies).
+    """
+    import subprocess
     import tempfile
-    import winsound
 
     if path is None:
         path = Path(tempfile.gettempdir()) / "drum_preview.wav"
     else:
         path = Path(path)
     write_preview_wav(notes, path)
-    try:
-        winsound.PlaySound(str(path), winsound.SND_FILENAME | winsound.SND_ASYNC)
-    except Exception as exc:
-        raise RuntimeError(f"Playback failed: {exc}") from exc
+    wav = str(path).replace("\\", "/")
+    ps = (
+        "powershell -NoProfile -Command "
+        f"$p = New-Object System.Media.SoundPlayer '{wav}'; $p.PlaySync()"
+    )
+    subprocess.Popen(ps, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return str(path)
