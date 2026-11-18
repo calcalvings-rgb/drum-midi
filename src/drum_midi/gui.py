@@ -119,6 +119,9 @@ class DrumMidiApp:
 
         self.roll = tk.Canvas(frame, width=600, height=260, background="white", highlightthickness=1, relief="solid", highlightbackground="#999")
         self.roll.grid(row=8, column=0, columnspan=3, sticky="ew")
+        self.roll_sbx = ttk.Scrollbar(frame, orient="horizontal", command=self.roll.xview)
+        self.roll_sbx.grid(row=9, column=0, columnspan=3, sticky="ew")
+        self.roll.configure(xscrollcommand=self.roll_sbx.set)
         self.roll.bind("<Button-1>", self.on_canvas_click)
         self.roll.bind("<B1-Motion>", self.on_drag)
         self.roll.bind("<ButtonRelease-1>", lambda _event: setattr(self, "_drag_x", None))
@@ -126,10 +129,10 @@ class DrumMidiApp:
         self.roll.bind("<KeyPress>", self._on_key)
         self.type_var = tk.StringVar(value=DRUM_TYPES[0])
         self.type_dropdown = ttk.Combobox(frame, textvariable=self.type_var, values=DRUM_TYPES, state="readonly")
-        self.type_dropdown.grid(row=9, column=0, sticky="ew")
+        self.type_dropdown.grid(row=10, column=0, sticky="ew")
         self.type_dropdown.bind("<<ComboboxSelected>>", lambda _event: self.reassign_selected())
         self.export_button = ttk.Button(frame, text="Export MIDI", command=self.export)
-        self.export_button.grid(row=9, column=1, columnspan=2, sticky="ew")
+        self.export_button.grid(row=10, column=1, columnspan=2, sticky="ew")
 
         self.render_notes()
 
@@ -154,8 +157,17 @@ class DrumMidiApp:
             y = DRUM_TYPES.index(note["type"]) * 18
             self.roll.create_rectangle(x, y + 2, x + 12, y + 15, fill=self.note_colors[note["type"]], outline="black" if i == self.selected_note else "", tags=(f"note:{i}",))
 
+        if self.notes:
+            last = max(note["onset_s"] for note in self.notes) + 2.0
+            max_x = 100 + last / self.seconds_per_pixel
+        else:
+            max_x = 100
+        self.roll.configure(scrollregion=(0, 0, max_x + 30, len(DRUM_TYPES) * 18 + 20))
+
     def on_canvas_click(self, event):
-        hits = self.roll.find_overlapping(event.x, event.y, event.x, event.y)
+        x = self.roll.canvasx(event.x)
+        y = self.roll.canvasy(event.y)
+        hits = self.roll.find_overlapping(x, y, x, y)
         selected = next((int(tag.split(":")[1]) for item in hits for tag in self.roll.gettags(item) if tag.startswith("note:")), None)
         self.selected_note = selected
         self._drag_x = event.x
