@@ -5,6 +5,10 @@ from scipy import signal
 
 from drum_midi.maps import DRUM_TYPES
 
+# Per-class ADTOF thresholds in LABELS_5 order (kick, snare, tom, hat, crash).
+# Tuned against a pop cover reference: crash heavily over-fires at low thresholds.
+ADTOF_THRESHOLDS = [0.08, 0.08, 0.20, 0.08, 0.65]
+
 
 def transcribe_bands(x: np.ndarray | None, sr: int) -> list[dict]:
     """Transcribe drum hits from audio using band-split spectral flux.
@@ -137,11 +141,16 @@ def transcribe_bands(x: np.ndarray | None, sr: int) -> list[dict]:
     return notes
 
 
-def transcribe_adtof(x: np.ndarray | None, sr: int, threshold: float = 0.08) -> list[dict]:
+def transcribe_adtof(
+    x: np.ndarray | None,
+    sr: int,
+    thresholds: list[float] | None = None,
+) -> list[dict]:
     """Transcribe drums using the vendored ADTOF model (lazy import, requires torch+librosa).
 
     ADTOF (Zehren et al.) outputs 5 GM drum classes: 35 kick, 38 snare,
-    47 low tom, 42 closed hat, 49 crash.
+    47 low tom, 42 closed hat, 49 crash. Per-class thresholds follow the
+    same order; defaults are tuned against a pop cover reference.
     """
     if x is None:
         return []
@@ -150,6 +159,9 @@ def transcribe_adtof(x: np.ndarray | None, sr: int, threshold: float = 0.08) -> 
         audio = np.mean(audio, axis=-1)
     if audio.size == 0 or np.max(np.abs(audio)) < 1e-4:
         return []
+
+    if thresholds is None:
+        thresholds = ADTOF_THRESHOLDS
 
     try:
         from drum_midi._vendor.adtof_pytorch import transcribe_to_midi
@@ -180,7 +192,9 @@ def transcribe_adtof(x: np.ndarray | None, sr: int, threshold: float = 0.08) -> 
             w.setsampwidth(2)
             w.setframerate(sr)
             w.writeframes(pcm.tobytes())
-        transcribe_to_midi(str(wav_path), str(midi_path), threshold=threshold, device="cpu")
+        transcribe_to_midi(
+            str(wav_path), str(midi_path), thresholds=thresholds, device="cpu"
+        )
         return _parse_adtof_midi(midi_path, midi_pitch_to_type)
 
 

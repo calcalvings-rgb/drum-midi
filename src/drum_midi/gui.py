@@ -25,7 +25,7 @@ class DrumMidiApp:
 
         self.mode_input_var = tk.StringVar(value="auto")
         self.mode_sep_var = tk.StringVar(value="HPSS")
-        self.mode_tx_var = tk.StringVar(value="bands")
+        self.mode_tx_var = tk.StringVar(value="adtof")
 
         kit_options = list(PRESETS.keys()) if PRESETS else ["gm", "mixwave_sleep_token"]
         if "gm" not in kit_options:
