@@ -71,12 +71,15 @@ def _synth_type(dtype: str) -> np.ndarray:
     return noise * 0.6
 
 
-def render_preview(notes: list[dict], sr: int = _FS) -> np.ndarray:
-    """Render notes [{type, onset_s, velocity?}] to a mono float32 buffer."""
-    notes = [n for n in notes if n.get("type")]
+def render_preview(notes: list[dict], sr: int = _FS, max_seconds: float = 15.0) -> np.ndarray:
+    """Render notes [{type, onset_s, velocity?}] to a mono float32 buffer.
+
+    Preview is capped to the first `max_seconds` so playback is short/immediate.
+    """
+    notes = [n for n in notes if n.get("type") and n.get("onset_s", 0.0) < max_seconds]
     if not notes:
         return np.zeros(int(0.5 * sr), dtype=np.float32)
-    dur = max((n.get("onset_s", 0.0) for n in notes), default=0.0) + 2.0
+    dur = min(max((n.get("onset_s", 0.0) for n in notes), default=0.0) + 2.0, max_seconds)
     buf = np.zeros(int(dur * sr), dtype=np.float64)
     for n in notes:
         start = int(n.get("onset_s", 0.0) * sr)
@@ -88,7 +91,7 @@ def render_preview(notes: list[dict], sr: int = _FS) -> np.ndarray:
         vel = n.get("velocity", 0.8)
         buf[start:end] += hit * float(vel)
     peak = np.max(np.abs(buf)) or 1.0
-    return (buf / peak * 0.9).astype(np.float32)
+    return (buf / peak * 0.98).astype(np.float32)
 
 
 def write_preview_wav(notes: list[dict], path: str | Path) -> str:
@@ -108,9 +111,12 @@ def play_preview(notes: list[dict], path: str | Path | None = None) -> str:
     import winsound
 
     if path is None:
-        tmp = Path(tempfile.gettempdir()) / "drum_preview.wav"
+        path = Path(tempfile.gettempdir()) / "drum_preview.wav"
     else:
-        tmp = Path(path)
-    write_preview_wav(notes, tmp)
-    winsound.PlaySound(str(tmp), winsound.SND_FILENAME | winsound.SND_ASYNC)
-    return str(tmp)
+        path = Path(path)
+    write_preview_wav(notes, path)
+    try:
+        winsound.PlaySound(str(path), winsound.SND_FILENAME | winsound.SND_ASYNC)
+    except Exception as exc:
+        raise RuntimeError(f"Playback failed: {exc}") from exc
+    return str(path)
