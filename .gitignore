@@ -4,3 +4,7 @@
 .venv312/
 
 .venv311/
+
+challange/
+__pycache__/
+*.pyc
