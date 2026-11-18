@@ -81,30 +81,14 @@ def test_gui_process_calls_pipeline(root, monkeypatch, tmp_path):
     app.kit_var.set("mixwave_sleep_token")
     app.tempo_var.set("140")
 
-    mock_run = MagicMock(return_value={"detected": "stem", "midi": str(tmp_path / "song.mid"), "notes": 42})
-    monkeypatch.setattr(gui_mod, "run_pipeline", mock_run)
+    monkeypatch.setattr(gui_mod, "parse_audio", MagicMock(return_value=(44100, [0])))
+    monkeypatch.setattr(gui_mod, "transcribe", MagicMock(return_value=[{"type": "kick", "onset_s": 0.1, "velocity": 0.8}]))
 
     app.process()
-
-    mock_run.assert_called_once()
-    args, kwargs = mock_run.call_args
-
-    input_arg = kwargs.get("input_path", args[0] if len(args) > 0 else None)
-    assert input_arg == str(test_audio)
-
-    mode_arg = kwargs.get("mode", args[1] if len(args) > 1 else None)
-    assert mode_arg is not None
-    assert mode_arg["input"] == "stem"
-    assert mode_arg["sep"].lower() == "hpss"
-    assert mode_arg["tx"].lower() == "bands"
-
-    preset_arg = kwargs.get("preset", args[3] if len(args) > 3 else None)
-    assert preset_arg == "mixwave_sleep_token"
-
-    tempo_arg = kwargs.get("tempo", args[4] if len(args) > 4 else None)
-    assert tempo_arg == 140
-
-    assert str(tmp_path / "song.mid") in app.result_var.get()
+    gui_mod.parse_audio.assert_called_once_with(str(test_audio), decode_mp3=True)
+    gui_mod.transcribe.assert_called_once()
+    assert app.notes[0]["type"] == "kick"
+    assert "ready to edit" in app.result_var.get()
     assert app.result_label.cget("text") == app.result_var.get()
 
 
@@ -114,11 +98,7 @@ def test_gui_process_missing_file_reports_error(root, monkeypatch):
     app = DrumMidiApp(root)
     app.input_path_var.set("")
 
-    mock_run = MagicMock()
-    monkeypatch.setattr(gui_mod, "run_pipeline", mock_run)
-
     app.process()
-    mock_run.assert_not_called()
     assert "error" in app.result_var.get().lower() or "select" in app.result_var.get().lower()
 
 
@@ -130,10 +110,43 @@ def test_gui_process_handles_pipeline_exception(root, monkeypatch, tmp_path):
     test_audio.write_bytes(b"dummy")
     app.input_path_var.set(str(test_audio))
 
-    monkeypatch.setattr(gui_mod, "run_pipeline", MagicMock(side_effect=ImportError("Demucs is not installed")))
+    monkeypatch.setattr(gui_mod, "parse_audio", MagicMock(side_effect=ImportError("Demucs is not installed")))
 
     app.process()
     assert "demucs" in app.result_var.get().lower() or "error" in app.result_var.get().lower()
+
+
+def test_render_creates_note_items(root):
+    app = DrumMidiApp(root)
+    app.notes = [{"type": "kick", "onset_s": 0.5, "velocity": 0.8}]
+    app.render_notes()
+    assert app.roll.find_withtag("note:0")
+
+
+def test_select_and_reassign_changes_type(root):
+    app = DrumMidiApp(root)
+    app.notes = [{"type": "kick", "onset_s": 0.5, "velocity": 0.8}]
+    app.render_notes()
+    app.on_canvas_click(type("Event", (), {"x": 151, "y": 9})())
+    app.reassign_selected("snare")
+    assert app.notes[0]["type"] == "snare"
+
+
+def test_delete_removes_selected_note(root):
+    app = DrumMidiApp(root)
+    app.notes = [{"type": "kick", "onset_s": 0.5, "velocity": 0.8}]
+    app.selected_note = 0
+    app.delete_selected()
+    assert app.notes == []
+
+
+def test_drag_updates_onset(root):
+    app = DrumMidiApp(root)
+    app.notes = [{"type": "kick", "onset_s": 0.5, "velocity": 0.8}]
+    app.selected_note = 0
+    app._drag_x = 150
+    app.on_drag(type("Event", (), {"x": 170})())
+    assert app.notes[0]["onset_s"] == 0.7
 
 
 def test_entrypoint_drum_midi():

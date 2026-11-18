@@ -4,8 +4,13 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, ttk
 
-from drum_midi.maps import PRESETS
-from drum_midi.pipeline import run_pipeline
+from drum_midi.audio import parse_audio
+from drum_midi.detect import detect_stem
+from drum_midi.editor import delete_note, move_note, reassign_note
+from drum_midi.maps import DRUM_TYPES, PRESETS
+from drum_midi.midi_out import write_midi
+from drum_midi.separate import separate
+from drum_midi.transcribe import transcribe
 
 
 class DrumMidiApp:
@@ -32,6 +37,11 @@ class DrumMidiApp:
         self.kit_var = tk.StringVar(value="gm")
         self.tempo_var = tk.StringVar(value="120")
         self.result_var = tk.StringVar(value="Ready")
+        self.notes = []
+        self.selected_note = None
+        self._drag_x = None
+        self.seconds_per_pixel = 0.01
+        self.note_colors = {kind: f"#{(i * 2654435761 & 0xFFFFFF):06x}" for i, kind in enumerate(DRUM_TYPES)}
 
         self._build_ui()
 
@@ -107,6 +117,83 @@ class DrumMidiApp:
         )
         self.result_label.grid(row=7, column=0, columnspan=3, pady=6)
 
+        self.roll = tk.Canvas(frame, width=600, height=260, background="white")
+        self.roll.grid(row=8, column=0, columnspan=3, sticky="ew")
+        self.roll.bind("<Button-1>", self.on_canvas_click)
+        self.roll.bind("<B1-Motion>", self.on_drag)
+        self.roll.bind("<ButtonRelease-1>", lambda _event: setattr(self, "_drag_x", None))
+        self.roll.bind("<Delete>", self.delete_selected)
+        self.roll.bind("<KeyPress>", self._on_key)
+        self.type_var = tk.StringVar(value=DRUM_TYPES[0])
+        self.type_dropdown = ttk.Combobox(frame, textvariable=self.type_var, values=DRUM_TYPES, state="readonly")
+        self.type_dropdown.grid(row=9, column=0, sticky="ew")
+        self.type_dropdown.bind("<<ComboboxSelected>>", lambda _event: self.reassign_selected())
+        self.export_button = ttk.Button(frame, text="Export MIDI", command=self.export)
+        self.export_button.grid(row=9, column=1, columnspan=2, sticky="ew")
+
+    def render_notes(self) -> None:
+        self.roll.delete("all")
+        for row, kind in enumerate(DRUM_TYPES):
+            y = row * 18
+            self.roll.create_text(4, y + 8, text=kind, anchor="w", fill="#555")
+        for i, note in enumerate(self.notes):
+            x = 100 + note["onset_s"] / self.seconds_per_pixel
+            y = DRUM_TYPES.index(note["type"]) * 18
+            self.roll.create_rectangle(x, y + 2, x + 12, y + 15, fill=self.note_colors[note["type"]], outline="black" if i == self.selected_note else "", tags=(f"note:{i}",))
+
+    def on_canvas_click(self, event):
+        hits = self.roll.find_overlapping(event.x, event.y, event.x, event.y)
+        selected = next((int(tag.split(":")[1]) for item in hits for tag in self.roll.gettags(item) if tag.startswith("note:")), None)
+        self.selected_note = selected
+        self._drag_x = event.x
+        if selected is not None:
+            self.type_var.set(self.notes[selected]["type"])
+        self.render_notes()
+        self.roll.focus_set()
+        return selected
+
+    def on_drag(self, event):
+        if self.selected_note is None or self._drag_x is None:
+            return
+        delta = (event.x - self._drag_x) * self.seconds_per_pixel
+        self.notes = move_note(self.notes, self.selected_note, delta)
+        self._drag_x = event.x
+        self.render_notes()
+
+    def reassign_selected(self, new_type=None):
+        if self.selected_note is None:
+            return
+        self.notes = reassign_note(self.notes, self.selected_note, new_type or self.type_var.get())
+        self.type_var.set(self.notes[self.selected_note]["type"])
+        self.render_notes()
+
+    def delete_selected(self, _event=None):
+        if self.selected_note is None:
+            return
+        self.notes = delete_note(self.notes, self.selected_note)
+        self.selected_note = None
+        self.render_notes()
+
+    def _on_key(self, event):
+        if event.keysym == "Delete":
+            self.delete_selected()
+        elif event.keysym in {str(i) for i in range(1, len(DRUM_TYPES) + 1)} and self.selected_note is not None:
+            self.type_var.set(DRUM_TYPES[int(event.keysym) - 1])
+            self.reassign_selected()
+
+    def export(self):
+        if not self.notes:
+            self.result_var.set("Error: Process audio before exporting.")
+            return
+        input_path = self.input_path_var.get().strip()
+        try:
+            tempo = int(float(self.tempo_var.get().strip()))
+        except (ValueError, TypeError):
+            tempo = 120
+        out_path = str(Path(input_path).with_suffix(".mid"))
+        write_midi(self.notes, out_path, preset=self.kit_var.get().strip(), tempo=tempo)
+        self.result_var.set(f"Exported! Output: {out_path} ({len(self.notes)} notes)")
+
     def browse_input_file(self) -> None:
         """Open a file dialog to pick an audio file."""
         chosen = filedialog.askopenfilename(
@@ -147,17 +234,14 @@ class DrumMidiApp:
         }
 
         try:
-            result = run_pipeline(
-                input_path=input_path,
-                mode=mode,
-                out_path=out_path,
-                preset=preset,
-                tempo=tempo,
-                decode_mp3=True,
-            )
-            midi_path = result.get("midi", out_path)
-            notes_count = result.get("notes", 0)
-            self.result_var.set(f"Completed! Output: {midi_path} ({notes_count} notes)")
+            sr, audio = parse_audio(input_path, decode_mp3=True)
+            detected = detect_stem(audio, sr) if input_mode == "auto" else input_mode
+            if detected == "full":
+                audio = separate(audio, sr, sep_mode)
+            self.notes = transcribe(audio, sr, method=tx_mode)
+            self.selected_note = None
+            self.render_notes()
+            self.result_var.set(f"Completed! {len(self.notes)} notes ready to edit and export.")
         except Exception as exc:
             self.result_var.set(f"Error: {exc}")
 
