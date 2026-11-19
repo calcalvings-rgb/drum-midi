@@ -98,6 +98,10 @@ PAGE = """<!doctype html>
   <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
     <div id="summary" style="font-weight:600"></div>
     <select id="filter"><option value="">all types</option></select>
+    <span style="color:#9aa2ae;font-size:12px">zoom</span>
+    <button id="zout" class="rowbtn">−</button>
+    <button id="zfit" class="rowbtn">fit</button>
+    <button id="zin" class="rowbtn">+</button>
   </div>
   <div id="legend" class="legend"></div>
   <div id="rollwrap" style="position:relative;overflow-x:auto;border:1px solid #262b36;border-radius:8px">
@@ -144,6 +148,7 @@ async function init() {
 let lastNotes = [];
 let selIndex = -1;
 let drag = null;
+let view = null, pan = null, lastPps = 100, fullRng = 1;
 const TYPE_COLOR = { kick:"#ff8a8a", snare:"#6db3ff", floor:"#e8b35a", rack1:"#e8b35a", rack2:"#e8b35a", crash1:"#c9a0ff", crash2:"#c9a0ff", hat_closed:"#b8c0cc", hat_open:"#b8c0cc", ride:"#b8c0cc", ride_bell:"#b8c0cc" };
 const LANE_H = 54, LBL_W = 112, AX_H = 28;
 
@@ -153,11 +158,21 @@ function laneTypes(notes) {
   notes.forEach(n => { if (!seen.includes(n.type)) seen.push(n.type); });
   return seen;
 }
-function viewMetrics(shown) {
+function fullView(shown) {
   let tMin = 0, tMax = shown.length ? Math.max(...shown.map(n => n.onset_s)) : 1;
   const pad = Math.max(0.5, tMax * 0.02); tMin = Math.max(0, tMin - pad); tMax += pad;
-  const plotW = Math.max(200, document.getElementById("rollwrap").clientWidth - 4) - LBL_W - 14;
-  return { tMin, tMax, pxPerSec: plotW / (tMax - tMin) };
+  return { start: tMin, dur: tMax - tMin };
+}
+function curView(shown) {
+  const f = fullView(shown);
+  if (!view) return f;
+  const dur = Math.min(view.dur, f.dur);
+  const start = Math.max(f.start, Math.min(view.start, f.start + f.dur - dur));
+  return { start, dur };
+}
+function currentShown() {
+  const filt = document.getElementById("filter").value;
+  return filt ? lastNotes.filter(n => n.type === filt) : lastNotes;
 }
 function drawRoll() {
   const notes = lastNotes, filt = document.getElementById("filter").value;
@@ -169,14 +184,17 @@ function drawRoll() {
   const lanes = laneTypes(notes);
   cvs.width = W; cvs.height = lanes.length * LANE_H + AX_H;
   const ctx = cvs.getContext("2d");
-  const m = viewMetrics(shown);
-  // grid ticks
+  const f = fullView(shown);
+  const v = curView(shown);
+  fullRng = f.dur;
+  const cW = W - LBL_W - 14;
+  lastPps = cW / v.dur;
   ctx.font = "12px ui-monospace,Consolas,monospace";
-  const step = [0.25, 0.5, 1, 2, 5].find(s => (m.tMax / s) <= 24) || 10;
-  for (let tt = Math.ceil(m.tMin / step) * step; tt <= m.tMax + 1e-9; tt += step) {
-    const x = LBL_W + (tt - m.tMin) * m.pxPerSec; if (x > W) break;
+  const step = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10].find(s => (v.dur / s) <= 22) || 10;
+  for (let tt = Math.ceil(v.start / step) * step; tt <= v.start + v.dur + 1e-9; tt += step) {
+    const x = LBL_W + (tt - v.start) * lastPps;
     ctx.strokeStyle = "#20252f"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cvs.height - AX_H); ctx.stroke();
-    ctx.fillStyle = "#77808f"; ctx.fillText(tt.toFixed(step < 1 ? 2 : 0), x + 3, cvs.height - 8);
+    ctx.fillStyle = "#77808f"; ctx.fillText(tt.toFixed(step < 0.25 ? 3 : step < 1 ? 2 : 0), x + 3, cvs.height - 8);
   }
   lanes.forEach((t, i) => {
     const y = i * LANE_H;
@@ -189,7 +207,8 @@ function drawRoll() {
       const ty = eff ? eff.curType : n.type;
       const os = eff ? eff.curOnset : n.onset_s;
       if (ty !== t) return;
-      const x = LBL_W + (os - m.tMin) * m.pxPerSec;
+      const x = LBL_W + (os - v.start) * lastPps;
+      if (x < LBL_W - 40 || x > W + 20) return;
       const bw = Math.max(6, Math.min(18, 7 + n.velocity * 12));
       ctx.fillStyle = TYPE_COLOR[ty] || "#888"; ctx.globalAlpha = 0.4 + 0.6 * n.velocity;
       ctx.fillRect(x, y + 9, bw, LANE_H - 18); ctx.globalAlpha = 1;
@@ -210,41 +229,67 @@ function noteAt(ev) {
   const cvs = document.getElementById("roll");
   const r = cvs.getBoundingClientRect();
   const X = ev.clientX - r.left, Y = ev.clientY - r.top;
-  const notes = lastNotes, filt = document.getElementById("filter").value;
-  const shown = filt ? notes.filter(n => n.type === filt) : notes;
-  const m = viewMetrics(shown);
-  const lanes = laneTypes(notes);
+  const shown = currentShown();
+  const v = curView(shown);
+  const lanes = laneTypes(lastNotes);
   const lane = Math.floor(Y / LANE_H);
   if (lane < 0 || lane >= lanes.length) return null;
   const type = lanes[lane];
-  const tAt = (X - LBL_W) / m.pxPerSec + m.tMin;
-  let best = -1, bd = 14 / m.pxPerSec;
-  shown.forEach(n => { if (n.type !== type) return; const d = Math.abs(n.onset_s - tAt); if (d <= bd) { bd = d; best = notes.indexOf(n); } });
+  const tAt = v.start + (X - LBL_W) / lastPps;
+  let best = -1, bd = 14 / lastPps;
+  shown.forEach(n => { if (n.type !== type) return; const d = Math.abs(n.onset_s - tAt); if (d <= bd) { bd = d; best = lastNotes.indexOf(n); } });
   if (best < 0) return null;
-  return { idx: best, n: notes[best] };
+  return { idx: best, n: lastNotes[best] };
+}
+function setView(s, d) {
+  const f = fullView(currentShown());
+  if (d >= f.dur - 1e-6) { view = null; return; }
+  const nd = Math.max(0.05, Math.min(d, f.dur));
+  const ns = Math.max(f.start, Math.min(s, f.start + f.dur - nd));
+  view = { start: ns, dur: nd };
+}
+function zoomBy(factor) {
+  const shown = currentShown();
+  const v = curView(shown);
+  const cvs = document.getElementById("roll");
+  const cx = cvs.width / 2;
+  const nd = v.dur * factor;
+  const tAt = v.start + (cx - LBL_W) / lastPps;
+  setView(tAt - (cx - LBL_W) * (nd / (cvs.width - LBL_W - 14)), nd);
+  drawRoll();
 }
 function onDown(ev) {
   const hit = noteAt(ev);
-  if (!hit) { selectNote(-1); return; }
+  if (!hit) {
+    const v = curView(currentShown());
+    if (view && v.dur < fullRng - 1e-6) { pan = { startX: ev.clientX, view: { start: v.start, dur: v.dur } }; ev.preventDefault(); return; }
+    selectNote(-1); return;
+  }
   drag = { idx: hit.idx, origOnset: hit.n.onset_s, origType: hit.n.type, curOnset: hit.n.onset_s, curType: hit.n.type };
   selectNote(hit.idx);
   ev.preventDefault();
 }
 function onMove(ev) {
+  if (pan) {
+    const v = curView(currentShown());
+    const dx = (ev.clientX - pan.startX) / lastPps;
+    setView(pan.view.start - dx, pan.view.dur);
+    drawRoll();
+    return;
+  }
   if (!drag) return;
+  const X = ev.clientX, Y = ev.clientY;
   const cvs = document.getElementById("roll");
   const r = cvs.getBoundingClientRect();
-  const X = ev.clientX - r.left, Y = ev.clientY - r.top;
-  const notes = lastNotes, filt = document.getElementById("filter").value;
-  const shown = filt ? notes.filter(n => n.type === filt) : notes;
-  const m = viewMetrics(shown);
-  const lanes = laneTypes(notes);
-  drag.curOnset = Math.max(0, (X - LBL_W) / m.pxPerSec + m.tMin);
-  const lane = Math.floor(Y / LANE_H);
+  const v = curView(currentShown());
+  const lanes = laneTypes(lastNotes);
+  drag.curOnset = Math.max(0, v.start + (X - r.left - LBL_W) / lastPps);
+  const lane = Math.floor((Y - r.top) / LANE_H);
   if (lane >= 0 && lane < lanes.length) drag.curType = lanes[lane];
   drawRoll();
 }
 async function onUp() {
+  if (pan) { pan = null; return; }
   if (!drag) return;
   const d = drag; drag = null;
   try {
@@ -312,6 +357,10 @@ document.getElementById("upbtn").onclick = upload;
 document.getElementById("roll").addEventListener("mousedown", onDown);
 document.addEventListener("mousemove", onMove);
 document.addEventListener("mouseup", onUp);
+document.getElementById("roll").addEventListener("wheel", e => { e.preventDefault(); zoomBy(e.deltaY > 0 ? 1.25 : 0.8); }, { passive: false });
+document.getElementById("zin").onclick = () => zoomBy(0.7);
+document.getElementById("zout").onclick = () => zoomBy(1.4);
+document.getElementById("zfit").onclick = () => { view = null; drawRoll(); };
 document.getElementById("roll").addEventListener("touchstart", e => { e.preventDefault(); const t = e.touches[0]; onDown({ clientX: t.clientX, clientY: t.clientY, preventDefault() {} }); }, { passive: false });
 document.addEventListener("touchmove", e => { const t = e.touches[0]; if (t) onMove({ clientX: t.clientX, clientY: t.clientY }); }, { passive: true });
 document.addEventListener("touchend", onUp);
