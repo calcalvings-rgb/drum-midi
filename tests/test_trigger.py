@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from drum_midi.trigger import trigger_transcribe, apply_velocity_curve, DEFAULT_CONFIG, classify_band
+from drum_midi.trigger import trigger_transcribe, apply_velocity_curve, DEFAULT_CONFIG, classify_band, classify_event
 from drum_midi import maps
 
 def make_click(sr, freq, dur=0.04, amp=1.0):
@@ -10,7 +10,8 @@ def make_click(sr, freq, dur=0.04, amp=1.0):
     y = amp * np.sin(2*np.pi*freq*t) * np.exp(-t*40)
     return y
 
-def test_simultaneous_hits_all_detected():
+def test_simultaneous_hit_single_type():
+    # InTrigger architecture: one onset -> one type per hit (not 3 parallel types).
     sr = 44100
     kick = make_click(sr, 60, amp=1.0)
     snare = make_click(sr, 250, amp=0.8)
@@ -20,10 +21,9 @@ def test_simultaneous_hits_all_detected():
     audio[0:len(snare)] += snare
     audio[0:len(crash)] += crash
     notes = trigger_transcribe(audio, sr)
-    types = {n["type"] for n in notes}
-    assert "kick" in types
-    assert "snare" in types
-    assert types & {"hat_closed", "crash1", "crash2", "ride"}
+    assert len(notes) == 1
+    assert notes[0]["type"] in {"kick", "snare", "floor", "rack1",
+                                "rack2", "hat_closed", "crash1", "crash2", "ride"}
 
 def test_band_isolation_no_phantom():
     sr = 44100
@@ -58,6 +58,17 @@ def test_crash_vs_hat_by_decay():
 def test_band_types_valid():
     for b in ["kick","snare","floor","rack2","rack1","hat_closed"]:
         assert classify_band(b, 0.05, {}) in maps.DRUM_TYPES
+
+def test_classify_event_boundaries():
+    # low centroid (Hz), short -> kick; long -> floor
+    assert classify_event(300.0, 0.05, {}) == "kick"
+    assert classify_event(300.0, 0.30, {}) == "floor"
+    # mid -> tom
+    assert classify_event(900.0, 0.05, {}) == "floor"
+    assert classify_event(2000.0, 0.05, {}) == "rack2"
+    # high centroid, short -> hat; long -> crash
+    assert classify_event(6000.0, 0.05, {}) == "hat_closed"
+    assert classify_event(6000.0, 0.30, {}) == "crash1"
 
 from drum_midi.transcribe import transcribe
 

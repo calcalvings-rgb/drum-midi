@@ -1,10 +1,45 @@
-"""Simple band-energy drum trigger transcription."""
+"""Global-onset drum trigger following Waves InTrigger architecture.
 
+Architecture (extracted from InTrigger bundle XML resources, see
+references/intrigger-architecture.md): a SINGLE global onset-strength curve
+(whitened, smoothed envelope) -> peak-pick -> a per-event classifier assigns
+exactly one type from spectral centroid + duration. This replaces per-band
+independent firing, which over-counts because a single hit excites many bands.
+
+Type boundary thresholds are placeholders; calibrate against the InTrigger
+oracle (FL-rendered MIDI) once available — see references/intrigger-architecture.md.
+"""
 import numpy as np
 from scipy import signal
 
-BANDS = [("kick", 20, 150), ("snare", 150, 500), ("floor", 500, 1200), ("rack2", 1200, 2500), ("rack1", 2500, 5000)]
-DEFAULT_CONFIG = {"threshold_k": 3.0, "min_distance_s": 0.04, "overlap_window_s": 0.010, "hat_min_hz": 5000.0, "crash_decay_s": 0.2, "velocity_curve": [[0.0, 0.0], [0.5, 0.55], [1.0, 1.0]]}
+BANDS = [
+    ("kick", 20, 150),
+    ("snare", 150, 500),
+    ("floor", 500, 1200),
+    ("rack2", 1200, 2500),
+    ("rack1", 2500, 5000),
+]
+
+DEFAULT_CONFIG = {
+    "threshold_k": 1.0,
+    "min_distance_s": 0.04,
+    "overlap_window_s": 0.010,
+    "hat_min_hz": 5000.0,
+    "crash_decay_s": 0.2,
+    # InTrigger-style chain tuning.
+    "onset_filter_order": 10,        # MeanOrd: temporal smoothing (kills baseline ripple)
+    "envelope_cutoff_hz": 80,        # envelope lowpass cutoff
+    "nperseg": 512,
+    "hop": 128,
+    # Centroid (Hz) class boundaries.
+    "kick_max_hz": 600.0,
+    "floor_max_hz": 1200.0,
+    "rack2_max_hz": 2600.0,
+    "rack1_max_hz": 5000.0,
+    "tom_dur_threshold_s": 0.15,     # low/mid band: duration >= => tom/floor
+    "crash_dur_threshold_s": 0.12,   # high band: duration >= => crash, else hat
+    "velocity_curve": [[0.0, 0.0], [0.5, 0.55], [1.0, 1.0]],
+}
 
 
 def classify_band(band_name: str, decay_s: float, config: dict) -> str:
@@ -16,6 +51,55 @@ def classify_band(band_name: str, decay_s: float, config: dict) -> str:
 def apply_velocity_curve(peak: float, curve: list[list[float]]) -> float:
     points = np.asarray(curve, dtype=float)
     return float(np.clip(np.interp(np.clip(peak, 0, 1), points[:, 0], points[:, 1]), 0, 1))
+
+
+def _whitened_envelope(audio: np.ndarray, sr: int, cfg: dict) -> np.ndarray:
+    """Band-pass, rectify, smooth, then moving-average onset filter.
+
+    The moving-average of order `onset_filter_order` is InTrigger's onset mean
+    filter; it smooths the envelope so find_peaks stops firing on baseline ripple.
+    """
+    nyq = sr / 2
+    sos_bp = signal.butter(4, [max(1.0, nyq * 0.0005), nyq - 1],
+                           "bandpass", fs=sr, output="sos")
+    x = signal.sosfilt(sos_bp, audio)
+    env = np.abs(x)
+    sos_lp = signal.butter(2, min(cfg["envelope_cutoff_hz"], nyq * 0.9),
+                           "lowpass", fs=sr, output="sos")
+    env = signal.sosfilt(sos_lp, env)
+    order = int(cfg["onset_filter_order"])
+    if order > 1:
+        env = signal.convolve(env, np.ones(order) / order, mode="same")
+    return env
+
+
+def _stft(audio: np.ndarray, sr: int, cfg: dict):
+    """Pre-computed STFT power spectrum used for class features."""
+    nperseg = int(cfg["nperseg"])
+    hop = int(cfg["hop"])
+    f, _, Zxx = signal.stft(audio, sr, nperseg=nperseg, noverlap=nperseg - hop)
+    return f, np.abs(Zxx) ** 2, hop
+
+
+def classify_event(centroid_hz: float, duration: float, config: dict) -> str:
+    """Assign one drum type from spectral centroid (Hz) + duration.
+
+    Boundary bands follow InTrigger's pairwise centroid/duration logic: low
+    centroid -> kick, mid -> snare/tom, high -> hat/crash; duration separates
+    kick from floor/tom and hat from crash.
+    """
+    cfg = config or {}
+    tom_dur = cfg.get("tom_dur_threshold_s", 0.15)
+    crash_dur = cfg.get("crash_dur_threshold_s", 0.12)
+    if centroid_hz < cfg.get("kick_max_hz", 600.0):
+        return "floor" if duration >= tom_dur else "kick"
+    if centroid_hz < cfg.get("floor_max_hz", 1200.0):
+        return "floor"
+    if centroid_hz < cfg.get("rack2_max_hz", 2600.0):
+        return "rack2"
+    if centroid_hz < cfg.get("rack1_max_hz", 5000.0):
+        return "rack1"
+    return "crash1" if duration >= crash_dur else "hat_closed"
 
 
 def trigger_transcribe(x, sr, config=None) -> list[dict]:
@@ -31,47 +115,34 @@ def trigger_transcribe(x, sr, config=None) -> list[dict]:
         return []
 
     cfg = DEFAULT_CONFIG | (config or {})
-    nyquist = sr / 2
-    envelope_sos = signal.butter(2, min(100, nyquist * 0.9), "lowpass", fs=sr, output="sos")
+    env = _whitened_envelope(audio, sr, cfg)
+    floor = np.percentile(env, 90)
+    threshold = max(cfg["threshold_k"] * floor, 0.05 * env.max())
     distance = max(1, round(cfg["min_distance_s"] * sr))
+    peaks, _ = signal.find_peaks(env, height=threshold, distance=distance)
+
+    f, Pw, hop = _stft(audio, sr, cfg)
+    fl = f.reshape(-1, 1)
+
     events = []
-    bands = list(BANDS)
-    if nyquist > cfg["hat_min_hz"]:
-        bands.append(("hat_closed", cfg["hat_min_hz"], nyquist - 50))
+    for peak in peaks:
+        value = env[peak]
+        half = value * 0.5
+        end = peak + 1
+        while end < len(env) and env[end] >= half:
+            end += 1
+        duration = (end - peak) / sr
 
-    for name, low, high in bands:
-        if nyquist < low or high <= low:
-            continue
-        sos = signal.butter(4, [low, min(high, nyquist - 1)], "bandpass", fs=sr, output="sos")
-        envelope = signal.sosfilt(envelope_sos, np.abs(signal.sosfilt(sos, audio)))
-        floor = np.percentile(envelope, 90)
-        # Keep filter leakage from a strong neighboring band below the trigger threshold.
-        threshold = max(cfg["threshold_k"] * floor, np.max(np.abs(audio)) * 0.10)
-        peaks, _ = signal.find_peaks(envelope, height=threshold, distance=distance)
-        for peak in peaks:
-            value = envelope[peak]
-            half = value * 0.5
-            end = peak + 1
-            while end < len(envelope) and envelope[end] >= half:
-                end += 1
-            decay_s = (end - peak) / sr
-            # Envelope peak is the onset proxy; scale to the strongest band peak.
-            normalized_peak = value / (envelope.max() or 1)
-            velocity = apply_velocity_curve(normalized_peak, cfg["velocity_curve"])
-            events.append({"type": classify_band(name, decay_s, cfg), "onset_s": peak / sr, "velocity": velocity})
+        start = peak + int(0.01 * sr)
+        stop = peak + int(0.05 * sr)
+        lo_f = max(0, int(start // hop))
+        hi_f = min(Pw.shape[1] - 1, int(stop // hop))
+        seg = Pw[:, lo_f:hi_f + 1].sum(axis=1)
+        total = seg.sum()
+        centroid = float((fl[:, 0] * seg).sum() / total) if total > 0 else 0.0
 
-    # Align near-simultaneous band hits to one timestamp while retaining each type.
-    events.sort(key=lambda n: (n["onset_s"], n["type"]))
-    window = cfg["overlap_window_s"]
-    i = 0
-    while i < len(events):
-        group = [events[i]]
-        j = i + 1
-        while j < len(events) and events[j]["onset_s"] - group[0]["onset_s"] <= window:
-            group.append(events[j])
-            j += 1
-        timestamp = min(n["onset_s"] for n in group)
-        for note in group:
-            note["onset_s"] = timestamp
-        i = j
+        kind = classify_event(centroid, duration, cfg)
+        velocity = apply_velocity_curve(value / (env.max() or 1), cfg["velocity_curve"])
+        events.append({"type": kind, "onset_s": peak / sr, "velocity": velocity})
+
     return sorted(events, key=lambda n: (n["onset_s"], n["type"]))
