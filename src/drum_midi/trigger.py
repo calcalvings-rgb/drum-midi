@@ -7,6 +7,11 @@ BANDS = [("kick", 20, 150), ("snare", 150, 500), ("floor", 500, 1200), ("rack2",
 DEFAULT_CONFIG = {"threshold_k": 3.0, "min_distance_s": 0.04, "overlap_window_s": 0.010, "hat_min_hz": 5000.0, "velocity_curve": [[0.0, 0.0], [0.5, 0.55], [1.0, 1.0]]}
 
 
+def apply_velocity_curve(peak: float, curve: list[list[float]]) -> float:
+    points = np.asarray(curve, dtype=float)
+    return float(np.clip(np.interp(np.clip(peak, 0, 1), points[:, 0], points[:, 1]), 0, 1))
+
+
 def trigger_transcribe(x, sr, config=None) -> list[dict]:
     if x is None or sr <= 0:
         return []
@@ -44,7 +49,8 @@ def trigger_transcribe(x, sr, config=None) -> list[dict]:
             while end < len(envelope) and envelope[end] >= half:
                 end += 1
             # Envelope peak is the onset proxy; scale to the strongest band peak.
-            velocity = float(np.clip(np.interp(value, [0, envelope.max() or 1], [0, 1]), 0, 1))
+            normalized_peak = value / (envelope.max() or 1)
+            velocity = apply_velocity_curve(normalized_peak, cfg["velocity_curve"])
             events.append({"type": name, "onset_s": peak / sr, "velocity": velocity})
 
     # Align near-simultaneous band hits to one timestamp while retaining each type.

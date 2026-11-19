@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from drum_midi.trigger import trigger_transcribe
+from drum_midi.trigger import trigger_transcribe, apply_velocity_curve, DEFAULT_CONFIG
 
 def make_click(sr, freq, dur=0.04, amp=1.0):
     t = np.arange(int(sr*dur)) / sr
@@ -35,3 +35,17 @@ def test_empty_input_returns_empty():
     sr = 44100
     assert trigger_transcribe(np.zeros(int(sr*0.3)), sr) == []
     assert trigger_transcribe(None, sr) == []
+
+import pytest
+
+def test_velocity_curve_interp():
+    c = DEFAULT_CONFIG["velocity_curve"]
+    assert apply_velocity_curve(0.0, c) == 0.0
+    assert apply_velocity_curve(1.0, c) == 1.0
+    assert apply_velocity_curve(0.5, c) == pytest.approx(0.55)
+    assert 0.0 < apply_velocity_curve(0.25, c) < 0.55
+
+def test_velocity_curve_clamp():
+    c = DEFAULT_CONFIG["velocity_curve"]
+    assert apply_velocity_curve(-0.5, c) == 0.0
+    assert apply_velocity_curve(1.5, c) == 1.0
