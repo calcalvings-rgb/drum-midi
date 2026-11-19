@@ -75,6 +75,44 @@ def test_edit_requires_run_first():
     assert code == 409
 
 
+def test_run_forwards_groove_and_flatten(tmp_path, monkeypatch):
+    from drum_midi import webui
+    h = _handler()
+    h.server.input_dir = str(tmp_path)
+    (tmp_path / "a.wav").write_bytes(b"dummy")
+    captured = {}
+    monkeypatch.setattr(webui, "parse_audio", lambda p: (44100, None))
+    monkeypatch.setattr(webui, "transcribe",
+                        lambda x, sr, **kw: (captured.update(kw), [])[1])
+    h._json = lambda obj, code=200: (obj, code)
+    obj, code = h._run({"file": "a.wav", "method": "trigger",
+                         "groove": False, "flatten_cymbal": True})
+    assert code == 200
+    assert captured.get("groove") is False
+    assert captured.get("flatten_cymbal") is True
+
+
+def test_run_defaults_groove_on():
+    from drum_midi import webui
+    h = _handler()
+    h.server.input_dir = "C:/Users/ccalv/workspace/coding/drum-midi/challange"
+    captured = {}
+    h._json = lambda obj, code=200: (obj, code)
+    monkeypatch = None
+    original_parse = webui.parse_audio
+    original_transcribe = webui.transcribe
+    try:
+        webui.parse_audio = lambda p: (44100, None)
+        webui.transcribe = lambda x, sr, **kw: (captured.update(kw), [])[1]
+        obj, code = h._run({"file": "tes2.wav", "method": "trigger"})
+    finally:
+        webui.parse_audio = original_parse
+        webui.transcribe = original_transcribe
+    assert code == 200
+    assert captured.get("groove") is True
+    assert captured.get("flatten_cymbal") is False
+
+
 def test_upload_saves_audio_file(tmp_path):
     h = _handler()
     h.server.input_dir = str(tmp_path)

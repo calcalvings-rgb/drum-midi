@@ -89,6 +89,10 @@ PAGE = """<!doctype html>
     <option value="adtof">adtof (neural, needs torch)</option>
     <option value="strum">strum (neural, needs torch)</option>
   </select>
+  <div style="margin-top:10px;font-size:13px">
+    <label><input type="checkbox" id="groove" checked> groove cleanup (collapse dup, tempo window)</label>
+    <label style="margin-left:14px"><input type="checkbox" id="flatten"> flatten cymbal → cymbal</label>
+  </div>
   <button id="run">Run</button>
   <button id="export" class="secondary" disabled>Export MIDI</button>
   <div id="status"></div>
@@ -313,7 +317,9 @@ async function run() {
   try {
     const body = { file: document.getElementById("file").value,
                    kit: document.getElementById("kit").value,
-                   method: document.getElementById("method").value };
+                   method: document.getElementById("method").value,
+                   groove: document.getElementById("groove").checked,
+                   flatten_cymbal: document.getElementById("flatten").checked };
     const j = await api("/api/run", { method: "POST", body: JSON.stringify(body) });
     renderNotes(j.notes);
     document.getElementById("results").style.display = "";
@@ -482,12 +488,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             sr, x = parse_audio(p)
             notes = transcribe(x, sr, method=body.get("method", "trigger"),
-                               threshold_preset=body.get("preset", "tuned-mixwave"))
+                               threshold_preset=body.get("preset", "tuned-mixwave"),
+                               groove=body.get("groove", True),
+                               flatten_cymbal=body.get("flatten_cymbal", False))
             self.server.notes = notes
             self.server.last_file = p
-            self._json({"count": len(notes), "notes": notes})
+            return self._json({"count": len(notes), "notes": notes})
         except Exception as e:  # surface real errors to the UI
-            self._json({"error": f"{type(e).__name__}: {e}"}, 500)
+            return self._json({"error": f"{type(e).__name__}: {e}"}, 500)
 
     def _edit(self, body):
         notes = getattr(self.server, "notes", None)
