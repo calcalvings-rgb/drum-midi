@@ -160,27 +160,38 @@ def is_continuous_groove(times, min_hits=4, tol_ratio=0.35):
     return max(abs(i - md) for i in iv) / md <= tol_ratio
 
 
-def dense_groove_indices(events, min_hits=4, tol_ratio=0.35):
-    """Absolute indices of events that fall inside a steady dense groove run."""
-    if len(events) < min_hits:
-        return set()
-    times = [e.time for e in events]
-    groove = set()
+def _steady_runs(times, min_hits, tol_ratio):
+    """Positions (a, b) of maximal steady near-uniform runs in `times`."""
+    runs = []
     i = 0
-    while i <= len(times) - min_hits:
-        run = [times[i]]
-        j = i
-        while j + 1 < len(times):
-            run.append(times[j + 1])
-            if len(run) >= min_hits and not is_continuous_groove(run, min_hits, tol_ratio):
-                run.pop()
-                break
+    n = len(times)
+    while i <= n - min_hits:
+        j = i + min_hits
+        while j < n and is_continuous_groove(times[i:j + 1], min_hits, tol_ratio):
             j += 1
-        if len(run) >= min_hits and is_continuous_groove(run, min_hits, tol_ratio):
-            groove.update(range(i, j + 1))
-            i = j + 1
+        if is_continuous_groove(times[i:j], min_hits, tol_ratio):
+            runs.append((i, j - 1))
+            i = j
         else:
             i += 1
+    return runs
+
+
+def dense_groove_indices(events, min_hits=4, tol_ratio=0.35):
+    """Absolute indices of events inside steady dense groove runs.
+
+    Detects per-instrument: a hi-hat groove is obscured when interleaved with
+    kick/snare, so each instrument's own timeline is analyzed separately.
+    """
+    by_instrument = {}
+    for i, e in enumerate(events):
+        by_instrument.setdefault(e.instrument, []).append(i)
+    groove = set()
+    for idxs in by_instrument.values():
+        idxs.sort(key=lambda i: events[i].time)
+        times = [events[i].time for i in idxs]
+        for a, b in _steady_runs(times, min_hits, tol_ratio):
+            groove.update(idxs[a:b + 1])
     return groove
 
 

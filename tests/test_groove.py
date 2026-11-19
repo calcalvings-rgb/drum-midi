@@ -197,6 +197,16 @@ def test_dense_groove_indices_marks_run_inside_noise():
     assert idx == {0, 1, 2, 3, 4}
 
 
+def test_dense_groove_indices_per_instrument():
+    # steady 16th HH interleaved with kicks; HH run must still be detected
+    evs = [E(10.00, "hh", vel=40), E(10.05, "kick", vel=100),
+           E(10.10, "hh", vel=42), E(10.15, "kick", vel=100),
+           E(10.20, "hh", vel=40), E(10.25, "kick", vel=100),
+           E(10.30, "hh", vel=41), E(10.35, "kick", vel=100)]
+    idx = dense_groove_indices(evs)
+    assert {0, 2, 4, 6} <= idx
+
+
 def test_cleanup_protect_grooves_keeps_ghost_notes():
     # steady 16th hi-hat (~0.06s gaps) tailing a loud crash: sustain would drop
     # the low-velocity ghost notes unless the groove is protected
