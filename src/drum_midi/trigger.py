@@ -192,6 +192,7 @@ def trigger_transcribe(x, sr, config=None) -> list[dict]:
 
         kind = classify_event(centroid, duration, cfg)
         velocity = apply_velocity_curve(value / (env.max() or 1), cfg["velocity_curve"])
-        events.append({"type": kind, "onset_s": onset, "velocity": velocity})
+        events.append({"type": kind, "onset_s": onset, "velocity": velocity,
+                       "confidence": float(np.clip(value / (env.max() or 1), 0, 1))})
 
     return sorted(events, key=lambda n: (n["onset_s"], n["type"]))

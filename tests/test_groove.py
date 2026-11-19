@@ -102,6 +102,18 @@ def test_cleanup_accepts_dict_input():
     assert isinstance(out[0], DrumEvent)
 
 
+def test_cleanup_filters_confidence_before_collapse():
+    evs = [E(10.0, "kick", 0.2), E(10.01, "snare", 0.9)]
+    out = groove_cleanup(evs, min_confidence=0.35)
+    assert [e.confidence for e in out] == [0.9]
+
+
+def test_cleanup_confidence_threshold_boundary_and_zero():
+    evs = [E(10.0, "kick", 0.2), E(11.0, "snare", 0.35), E(12.0, "ride", 0.9)]
+    assert [e.confidence for e in groove_cleanup(evs, min_confidence=0.35)] == [0.35, 0.9]
+    assert len(groove_cleanup(evs)) == 3  # default off
+
+
 # --- suppress_cymbal_sustain (PR-002) ---
 def test_sustain_drops_low_velocity_tail():
     evs = [E(10.00, "crash", vel=95), E(10.08, "crash", vel=30),

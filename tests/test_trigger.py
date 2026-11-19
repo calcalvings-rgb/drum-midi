@@ -32,6 +32,14 @@ def test_band_isolation_no_phantom():
     notes = trigger_transcribe(audio, sr)
     assert {n["type"] for n in notes} == {"kick"}
 
+def test_trigger_notes_include_normalized_confidence():
+    sr = 44100
+    audio = np.zeros(int(sr*0.4))
+    audio[:int(sr*0.04)] = make_click(sr, 60)
+    notes = trigger_transcribe(audio, sr)
+    assert notes
+    assert all(0.0 <= n["confidence"] <= 1.0 for n in notes)
+
 def test_empty_input_returns_empty():
     sr = 44100
     assert trigger_transcribe(np.zeros(int(sr*0.3)), sr) == []
