@@ -58,3 +58,12 @@ def test_crash_vs_hat_by_decay():
 def test_band_types_valid():
     for b in ["kick","snare","floor","rack2","rack1","hat_closed"]:
         assert classify_band(b, 0.05, {}) in maps.DRUM_TYPES
+
+from drum_midi.transcribe import transcribe
+
+def test_transcribe_trigger_dispatch():
+    sr = 44100
+    audio = np.zeros(int(sr*0.5))
+    audio[0:int(sr*0.04)] = make_click(sr, 60, amp=1.0)
+    notes = transcribe(audio, sr, method="trigger")
+    assert {n["type"] for n in notes} == {"kick"}

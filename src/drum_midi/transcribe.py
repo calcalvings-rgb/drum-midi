@@ -9,6 +9,7 @@ from scipy import signal
 from typing import Any
 
 from drum_midi.maps import DRUM_TYPES
+from drum_midi.trigger import trigger_transcribe
 
 # Per-class ADTOF thresholds in LABELS_5 order (kick, snare, tom, hat, crash).
 # Tuned against a pop cover reference: crash heavily over-fires at low thresholds.
@@ -48,10 +49,12 @@ DETTATO_THRESHOLDS = {"kit": 0.5, "drum": 0.5, "timpani": 0.5, "router": 0.5}
 # "tuned-mixwave" matches the pop cover reference distribution.
 THRESHOLD_PRESETS = {
     "tuned-mixwave": {
+        "trigger": None,
         "adtof": ADTOF_THRESHOLDS,
         "dettato": {"kit": 0.7, "drum": 0.5, "timpani": 0.5, "router": 0.5},
     },
     "dense": {
+        "trigger": None,
         "adtof": [0.08, 0.08, 0.20, 0.08, 0.35],
         "dettato": DETTATO_THRESHOLDS,
     },
@@ -76,6 +79,7 @@ THRESHOLD_PRESETS = {
         },
     },
     "sparse": {
+        "trigger": None,
         "adtof": [0.10, 0.10, 0.28, 0.10, 0.80],
         "dettato": {"kit": 0.8, "drum": 0.6, "timpani": 0.6, "router": 0.5},
     },
@@ -557,6 +561,8 @@ def transcribe_dispatch(
     if method == "strum":
         mc_thr = (config or {}).get("mc_rescue_thr", 0.4)
         return transcribe_strum(x, sr, mc_rescue_thr=mc_thr)
+    if method == "trigger":
+        return trigger_transcribe(x, sr, config=config)
     raise ValueError(f"Unknown transcription method: {method}")
 
 
