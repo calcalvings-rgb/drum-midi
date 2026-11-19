@@ -87,11 +87,12 @@ def test_run_forwards_groove_and_flatten(tmp_path, monkeypatch):
     h._json = lambda obj, code=200: (obj, code)
     obj, code = h._run({"file": "a.wav", "method": "trigger",
                          "groove": False, "flatten_cymbal": True,
-                         "velocity_smooth": True})
+                         "velocity_smooth": True, "protect_grooves": True})
     assert code == 200
     assert captured.get("groove") is False
     assert captured.get("flatten_cymbal") is True
     assert captured.get("velocity_smooth") is True
+    assert captured.get("protect_grooves") is True
 
 
 def test_run_defaults_groove_on():

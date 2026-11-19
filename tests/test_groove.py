@@ -1,7 +1,8 @@
 import pytest
 from drum_midi.groove import (DrumEvent, adaptive_window, collapse_duplicates,
-                              cluster_events, groove_cleanup,
-                              merge_cymbal_cluster, smooth_velocities)
+                              cluster_events, dense_groove_indices, groove_cleanup,
+                              is_continuous_groove, merge_cymbal_cluster,
+                              smooth_velocities)
 
 
 def E(t, inst, conf=1.0, vel=100):
@@ -170,3 +171,46 @@ def test_cleanup_velocity_smooth_default_off():
     evs = [E(10, "kick", vel=10), E(11, "snare", vel=127)]
     out = groove_cleanup(evs)
     assert [e.velocity for e in out] == [10, 127]
+
+
+# --- groove density detection (PR-005) ---
+def test_is_continuous_groove_uniform_true():
+    # 16th hi-hat at 120bpm ~ 0.125s, near-uniform
+    times = [10.0 + 0.125 * i for i in range(6)]
+    assert is_continuous_groove(times)
+
+
+def test_is_continuous_groove_erratic_false():
+    # crash spam: erratic gaps
+    times = [10.0, 10.07, 10.20, 10.22, 10.45, 10.50]
+    assert not is_continuous_groove(times)
+
+
+def test_is_continuous_groove_too_few_false():
+    assert not is_continuous_groove([10.0, 10.15, 10.3])
+
+
+def test_dense_groove_indices_marks_run_inside_noise():
+    evs = [E(0.0, "crash1"), E(0.15, "crash1"), E(0.30, "crash1"),
+           E(0.45, "crash1"), E(0.60, "crash1"), E(5.0, "crash2")]
+    idx = dense_groove_indices(evs)
+    assert idx == {0, 1, 2, 3, 4}
+
+
+def test_cleanup_protect_grooves_keeps_ghost_notes():
+    # steady 16th hi-hat (~0.06s gaps) tailing a loud crash: sustain would drop
+    # the low-velocity ghost notes unless the groove is protected
+    evs = [E(10.00, "crash", vel=95), E(10.06, "hh", vel=40),
+           E(10.12, "hh", vel=42), E(10.18, "hh", vel=38),
+           E(10.24, "hh", vel=40)]
+    out_off = groove_cleanup(evs)                    # protect off -> crash + late hh (3)
+    out_on = groove_cleanup(evs, protect_grooves=True)  # keep groove -> 5
+    assert len(out_off) == 3
+    assert len(out_on) == 5
+
+
+def test_cleanup_protect_grooves_default_off():
+    evs = [E(10.00, "crash", vel=95), E(10.06, "hh", vel=40),
+           E(10.12, "hh", vel=42), E(10.18, "hh", vel=38),
+           E(10.24, "hh", vel=40)]
+    assert len(groove_cleanup(evs)) == 3

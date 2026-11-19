@@ -583,6 +583,7 @@ def transcribe(
     x: np.ndarray | None, sr: int, method: str = "bands", threshold_preset: str = "tuned-mixwave",
     groove: bool = True, flatten_cymbal: bool = False,
     velocity_smooth: bool = False,
+    protect_grooves: bool = False,
 ) -> list[dict]:
     """Transcribe percussion audio into drum events.
 
@@ -600,6 +601,7 @@ def transcribe(
     evs = [DrumEvent(n["onset_s"], n["type"], n.get("velocity", 100),
                      n.get("confidence", 1.0)) for n in notes]
     cleaned = groove_cleanup(evs, tempo_bpm=tempo, flatten_cymbal=flatten_cymbal,
-                             velocity_smooth=velocity_smooth)
+                             velocity_smooth=velocity_smooth,
+                             protect_grooves=protect_grooves)
     return [{"type": e.instrument, "onset_s": e.time, "velocity": e.velocity}
             for e in cleaned]

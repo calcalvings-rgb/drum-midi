@@ -90,6 +90,8 @@ Mode:
 
 **Goal:** lebih usable di FL Studio.
 
+**Status: DONE (master).** `velocity_smooth=False` default; toggle **smooth velocity → 50-120** di UI. Belum divalidasi vs genre nyata.
+
 ---
 
 ## PR-005 — Groove Density Detection
@@ -97,6 +99,8 @@ Mode:
 **Problem:** model sulit membedakan crash spam vs HH pattern.
 
 **Solution:** analisis densitas event. Jika ditemukan pola 1/8, 1/16, 1/16, 1/16 berulang → anggap **continuous groove**, bukan accent hit.
+
+**Status: DONE (master).** `is_continuous_groove` / `dense_groove_indices` + `protect_grooves=False` default; melindungi groove seragam dari sustain suppression (ghost note 16th lemah). Catatan: tes2 hanya 1 crash → on=off (butuh sample cymbal/HH-heavy utk validasi efek nyata).
 
 ---
 

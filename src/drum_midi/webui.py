@@ -93,6 +93,7 @@ PAGE = """<!doctype html>
     <label><input type="checkbox" id="groove" checked> groove cleanup (collapse dup, tempo window)</label>
     <label style="margin-left:14px"><input type="checkbox" id="flatten"> flatten cymbal → cymbal</label>
     <label style="margin-left:14px"><input type="checkbox" id="velsmooth"> smooth velocity → 50-120</label>
+    <label style="margin-left:14px"><input type="checkbox" id="protgrooves"> protect steady grooves</label>
   </div>
   <button id="run">Run</button>
   <button id="export" class="secondary" disabled>Export MIDI</button>
@@ -321,7 +322,8 @@ async function run() {
                    method: document.getElementById("method").value,
                    groove: document.getElementById("groove").checked,
                    flatten_cymbal: document.getElementById("flatten").checked,
-                   velocity_smooth: document.getElementById("velsmooth").checked };
+                   velocity_smooth: document.getElementById("velsmooth").checked,
+                   protect_grooves: document.getElementById("protgrooves").checked };
     const j = await api("/api/run", { method: "POST", body: JSON.stringify(body) });
     renderNotes(j.notes);
     document.getElementById("results").style.display = "";
@@ -493,7 +495,8 @@ class Handler(BaseHTTPRequestHandler):
                                threshold_preset=body.get("preset", "tuned-mixwave"),
                                groove=body.get("groove", True),
                                flatten_cymbal=body.get("flatten_cymbal", False),
-                               velocity_smooth=body.get("velocity_smooth", False))
+                               velocity_smooth=body.get("velocity_smooth", False),
+                               protect_grooves=body.get("protect_grooves", False))
             self.server.notes = notes
             self.server.last_file = p
             return self._json({"count": len(notes), "notes": notes})

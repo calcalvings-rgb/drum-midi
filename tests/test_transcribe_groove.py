@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import drum_midi.groove as groove
 from drum_midi import transcribe
 
 
@@ -54,3 +55,28 @@ def test_transcribe_velocity_smooth_default_off(monkeypatch):
     monkeypatch.setattr(transcribe, "transcribe_dispatch", lambda *a, **k: notes)
     out = transcribe.transcribe(None, 44100, method="trigger")
     assert {n["velocity"] for n in out} == {10, 127}
+
+
+def test_transcribe_protect_grooves_flag(monkeypatch):
+    notes = [{"type": "hh", "onset_s": 1.0, "velocity": 40},
+             {"type": "hh", "onset_s": 1.06, "velocity": 42}]
+    monkeypatch.setattr(transcribe, "transcribe_dispatch", lambda *a, **k: notes)
+    seen = {}
+    def fake_cl(*a, **kw):
+        seen.update(kw)
+        return []
+    monkeypatch.setattr(groove, "groove_cleanup", fake_cl)
+    transcribe.transcribe(None, 44100, method="trigger", protect_grooves=True)
+    assert seen.get("protect_grooves") is True
+
+
+def test_transcribe_protect_grooves_default_off(monkeypatch):
+    notes = [{"type": "hh", "onset_s": 1.0, "velocity": 40}]
+    monkeypatch.setattr(transcribe, "transcribe_dispatch", lambda *a, **k: notes)
+    seen = {}
+    def fake_cl(*a, **kw):
+        seen.update(kw)
+        return []
+    monkeypatch.setattr(groove, "groove_cleanup", fake_cl)
+    transcribe.transcribe(None, 44100, method="trigger")
+    assert seen.get("protect_grooves") is False
