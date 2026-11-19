@@ -31,11 +31,11 @@ DEFAULT_CONFIG = {
     "envelope_cutoff_hz": 80,        # envelope lowpass cutoff
     "nperseg": 512,
     "hop": 128,
-    # Centroid (Hz) class boundaries.
-    "kick_max_hz": 600.0,
-    "floor_max_hz": 1200.0,
-    "rack2_max_hz": 2600.0,
-    "rack1_max_hz": 5000.0,
+    # Centroid (Hz) class boundaries (fitted on GT tes2.mid).
+    "kick_max_hz": 110.0,
+    "tom_max_hz": 380.0,
+    "tom_lo_hz": 220.0,
+    "snare_max_hz": 1000.0,
     "tom_dur_threshold_s": 0.15,     # low/mid band: duration >= => tom/floor
     "crash_dur_threshold_s": 0.12,   # high band: duration >= => crash, else hat
     "velocity_curve": [[0.0, 0.0], [0.5, 0.55], [1.0, 1.0]],
@@ -84,21 +84,23 @@ def _stft(audio: np.ndarray, sr: int, cfg: dict):
 def classify_event(centroid_hz: float, duration: float, config: dict) -> str:
     """Assign one drum type from spectral centroid (Hz) + duration.
 
-    Boundary bands follow InTrigger's pairwise centroid/duration logic: low
-    centroid -> kick, mid -> snare/tom, high -> hat/crash; duration separates
-    kick from floor/tom and hat from crash.
+    Boundaries fitted supervised on GT tes2.mid (75 notes, Kontakt): macro-F1
+    0.719 with kick<110, tom<380, snare<1000, else crash. Duration separates
+    kick from floor/tom and hat from crash (InTrigger-style).
     """
     cfg = config or {}
     tom_dur = cfg.get("tom_dur_threshold_s", 0.15)
     crash_dur = cfg.get("crash_dur_threshold_s", 0.12)
-    if centroid_hz < cfg.get("kick_max_hz", 600.0):
+    tom_lo = cfg.get("tom_lo_hz", 220.0)
+    k_kick = cfg.get("kick_max_hz", 110.0)
+    k_snare = cfg.get("snare_max_hz", 1000.0)
+    if centroid_hz < k_kick:
         return "floor" if duration >= tom_dur else "kick"
-    if centroid_hz < cfg.get("floor_max_hz", 1200.0):
-        return "floor"
-    if centroid_hz < cfg.get("rack2_max_hz", 2600.0):
-        return "rack2"
-    if centroid_hz < cfg.get("rack1_max_hz", 5000.0):
-        return "rack1"
+    if centroid_hz < cfg.get("tom_max_hz", 380.0):
+        # floor (low tom) vs rack (higher tom)
+        return "floor" if centroid_hz < tom_lo else "rack2"
+    if centroid_hz < k_snare:
+        return "snare"
     return "crash1" if duration >= crash_dur else "hat_closed"
 
 

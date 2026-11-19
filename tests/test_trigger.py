@@ -60,12 +60,13 @@ def test_band_types_valid():
         assert classify_band(b, 0.05, {}) in maps.DRUM_TYPES
 
 def test_classify_event_boundaries():
-    # low centroid (Hz), short -> kick; long -> floor
-    assert classify_event(300.0, 0.05, {}) == "kick"
-    assert classify_event(300.0, 0.30, {}) == "floor"
-    # mid -> tom
-    assert classify_event(900.0, 0.05, {}) == "floor"
-    assert classify_event(2000.0, 0.05, {}) == "rack2"
+    # low centroid (Hz), short -> kick
+    assert classify_event(60.0, 0.05, {}) == "kick"
+    # tom band: below tom_lo -> floor, above -> rack2
+    assert classify_event(150.0, 0.05, {}) == "floor"
+    assert classify_event(300.0, 0.05, {}) == "rack2"
+    # snare band
+    assert classify_event(900.0, 0.05, {}) == "snare"
     # high centroid, short -> hat; long -> crash
     assert classify_event(6000.0, 0.05, {}) == "hat_closed"
     assert classify_event(6000.0, 0.30, {}) == "crash1"
