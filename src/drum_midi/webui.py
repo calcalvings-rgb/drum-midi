@@ -68,7 +68,7 @@ PAGE = """<!doctype html>
   .legend{margin-top:10px;font-size:12px;line-height:2}
   .legend .badge{margin-right:10px}
   #filter{width:180px;display:inline-block;margin-left:8px}
-  #roll{display:block;width:100%;height:auto}
+  #roll{display:block;width:100%;height:auto;cursor:crosshair;user-select:none;touch-action:none}
 </style></head><body>
 <h1>Drum → MIDI</h1>
 <p class="sub">Trigger backend · remote control</p>
@@ -143,6 +143,7 @@ async function init() {
 }
 let lastNotes = [];
 let selIndex = -1;
+let drag = null;
 const TYPE_COLOR = { kick:"#ff8a8a", snare:"#6db3ff", floor:"#e8b35a", rack1:"#e8b35a", rack2:"#e8b35a", crash1:"#c9a0ff", crash2:"#c9a0ff", hat_closed:"#b8c0cc", hat_open:"#b8c0cc", ride:"#b8c0cc", ride_bell:"#b8c0cc" };
 const LANE_H = 54, LBL_W = 112, AX_H = 28;
 
@@ -183,12 +184,16 @@ function drawRoll() {
     ctx.fillStyle = "#c3cbd8"; ctx.font = "13px system-ui,sans-serif"; ctx.fillText(t, 10, y + LANE_H * 0.58);
     ctx.strokeStyle = "#222736"; ctx.strokeRect(LBL_W, y, W - LBL_W, LANE_H);
     shown.forEach(n => {
-      if (n.type !== t) return;
-      const x = LBL_W + (n.onset_s - m.tMin) * m.pxPerSec;
+      const di = notes.indexOf(n);
+      const eff = (drag && di === drag.idx) ? drag : null;
+      const ty = eff ? eff.curType : n.type;
+      const os = eff ? eff.curOnset : n.onset_s;
+      if (ty !== t) return;
+      const x = LBL_W + (os - m.tMin) * m.pxPerSec;
       const bw = Math.max(6, Math.min(18, 7 + n.velocity * 12));
-      ctx.fillStyle = TYPE_COLOR[n.type] || "#888"; ctx.globalAlpha = 0.4 + 0.6 * n.velocity;
+      ctx.fillStyle = TYPE_COLOR[ty] || "#888"; ctx.globalAlpha = 0.4 + 0.6 * n.velocity;
       ctx.fillRect(x, y + 9, bw, LANE_H - 18); ctx.globalAlpha = 1;
-      if (notes.indexOf(n) === selIndex) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.strokeRect(x - 3, y + 6, bw + 6, LANE_H - 12); ctx.lineWidth = 1; }
+      if (di === selIndex) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.strokeRect(x - 3, y + 6, bw + 6, LANE_H - 12); ctx.lineWidth = 1; }
     });
   });
 }
@@ -201,7 +206,7 @@ function updatePanel() {
   panel.style.display = "";
 }
 function selectNote(i) { selIndex = i; updatePanel(); drawRoll(); }
-function onRollClick(ev) {
+function noteAt(ev) {
   const cvs = document.getElementById("roll");
   const r = cvs.getBoundingClientRect();
   const X = ev.clientX - r.left, Y = ev.clientY - r.top;
@@ -210,12 +215,43 @@ function onRollClick(ev) {
   const m = viewMetrics(shown);
   const lanes = laneTypes(notes);
   const lane = Math.floor(Y / LANE_H);
-  if (lane < 0 || lane >= lanes.length) return;
+  if (lane < 0 || lane >= lanes.length) return null;
   const type = lanes[lane];
   const tAt = (X - LBL_W) / m.pxPerSec + m.tMin;
-  let best = -1, bd = 12 / m.pxPerSec;
+  let best = -1, bd = 14 / m.pxPerSec;
   shown.forEach(n => { if (n.type !== type) return; const d = Math.abs(n.onset_s - tAt); if (d <= bd) { bd = d; best = notes.indexOf(n); } });
-  selectNote(best);
+  if (best < 0) return null;
+  return { idx: best, n: notes[best] };
+}
+function onDown(ev) {
+  const hit = noteAt(ev);
+  if (!hit) { selectNote(-1); return; }
+  drag = { idx: hit.idx, origOnset: hit.n.onset_s, origType: hit.n.type, curOnset: hit.n.onset_s, curType: hit.n.type };
+  selectNote(hit.idx);
+  ev.preventDefault();
+}
+function onMove(ev) {
+  if (!drag) return;
+  const cvs = document.getElementById("roll");
+  const r = cvs.getBoundingClientRect();
+  const X = ev.clientX - r.left, Y = ev.clientY - r.top;
+  const notes = lastNotes, filt = document.getElementById("filter").value;
+  const shown = filt ? notes.filter(n => n.type === filt) : notes;
+  const m = viewMetrics(shown);
+  const lanes = laneTypes(notes);
+  drag.curOnset = Math.max(0, (X - LBL_W) / m.pxPerSec + m.tMin);
+  const lane = Math.floor(Y / LANE_H);
+  if (lane >= 0 && lane < lanes.length) drag.curType = lanes[lane];
+  drawRoll();
+}
+async function onUp() {
+  if (!drag) return;
+  const d = drag; drag = null;
+  try {
+    if (d.curType !== d.origType) await edit({ action: "reassign", index: d.idx, type: d.curType });
+    if (Math.abs(d.curOnset - d.origOnset) > 0.0001) await edit({ action: "move", index: d.idx, delta_s: d.curOnset - d.origOnset });
+    else selectNote(d.idx);
+  } catch (e) { document.getElementById("status").textContent = "error: " + e.message; }
 }
 function renderNotes(notes) { lastNotes = notes; drawRoll(); updatePanel(); }
 async function edit(body) {
@@ -273,7 +309,12 @@ async function upload() {
 document.getElementById("run").onclick = run;
 document.getElementById("export").onclick = exportMidi;
 document.getElementById("upbtn").onclick = upload;
-document.getElementById("roll").addEventListener("click", onRollClick);
+document.getElementById("roll").addEventListener("mousedown", onDown);
+document.addEventListener("mousemove", onMove);
+document.addEventListener("mouseup", onUp);
+document.getElementById("roll").addEventListener("touchstart", e => { e.preventDefault(); const t = e.touches[0]; onDown({ clientX: t.clientX, clientY: t.clientY, preventDefault() {} }); }, { passive: false });
+document.addEventListener("touchmove", e => { const t = e.touches[0]; if (t) onMove({ clientX: t.clientX, clientY: t.clientY }); }, { passive: true });
+document.addEventListener("touchend", onUp);
 document.getElementById("mvL").onclick = () => { if (selIndex >= 0) edit({ action: "move", index: selIndex, delta_s: -0.01 }); };
 document.getElementById("mvR").onclick = () => { if (selIndex >= 0) edit({ action: "move", index: selIndex, delta_s: 0.01 }); };
 document.getElementById("seldel").onclick = () => { if (selIndex >= 0) edit({ action: "delete", index: selIndex }); };
