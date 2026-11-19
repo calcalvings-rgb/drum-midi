@@ -582,13 +582,15 @@ def _estimate_tempo(x: np.ndarray | None, sr: int) -> float | None:
 def transcribe(
     x: np.ndarray | None, sr: int, method: str = "bands", threshold_preset: str = "tuned-mixwave",
     groove: bool = True, flatten_cymbal: bool = False,
+    velocity_smooth: bool = False,
 ) -> list[dict]:
     """Transcribe percussion audio into drum events.
 
     ``threshold_preset`` selects the per-backend threshold preset
     (see ``THRESHOLD_PRESETS``). ``groove`` runs post-processing cleanup
     (collapse near-duplicate onsets, adaptive tempo window); ``flatten_cymbal``
-    merges ambiguous cymbal clusters into a single ``cymbal`` event.
+    merges ambiguous cymbal clusters into a single ``cymbal`` event;
+    ``velocity_smooth`` remaps velocity percentiles onto [50, 120].
     """
     notes = transcribe_dispatch(x, sr, method=method, threshold_preset=threshold_preset)
     if not groove:
@@ -597,6 +599,7 @@ def transcribe(
     tempo = _estimate_tempo(x, sr)
     evs = [DrumEvent(n["onset_s"], n["type"], n.get("velocity", 100),
                      n.get("confidence", 1.0)) for n in notes]
-    cleaned = groove_cleanup(evs, tempo_bpm=tempo, flatten_cymbal=flatten_cymbal)
+    cleaned = groove_cleanup(evs, tempo_bpm=tempo, flatten_cymbal=flatten_cymbal,
+                             velocity_smooth=velocity_smooth)
     return [{"type": e.instrument, "onset_s": e.time, "velocity": e.velocity}
             for e in cleaned]

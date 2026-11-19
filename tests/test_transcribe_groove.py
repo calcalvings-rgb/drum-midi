@@ -36,3 +36,21 @@ def test_transcribe_flatten_cymbal(monkeypatch):
 def test_transcribe_tempo_fallback_on_no_audio():
     # x=None -> tempo None -> default window; should not raise
     assert transcribe._estimate_tempo(None, 44100) is None
+
+
+def test_transcribe_velocity_smooth_flag(monkeypatch):
+    notes = [{"type": "kick", "onset_s": 1.0, "velocity": 10},
+             {"type": "snare", "onset_s": 1.1, "velocity": 127}]
+    monkeypatch.setattr(transcribe, "transcribe_dispatch", lambda *a, **k: notes)
+    out = transcribe.transcribe(None, 44100, method="trigger", velocity_smooth=True)
+    vs = [n["velocity"] for n in out]
+    assert max(vs) == 120
+    assert min(vs) == 50
+
+
+def test_transcribe_velocity_smooth_default_off(monkeypatch):
+    notes = [{"type": "kick", "onset_s": 1.0, "velocity": 10},
+             {"type": "snare", "onset_s": 1.1, "velocity": 127}]
+    monkeypatch.setattr(transcribe, "transcribe_dispatch", lambda *a, **k: notes)
+    out = transcribe.transcribe(None, 44100, method="trigger")
+    assert {n["velocity"] for n in out} == {10, 127}

@@ -1,7 +1,7 @@
 import pytest
 from drum_midi.groove import (DrumEvent, adaptive_window, collapse_duplicates,
                               cluster_events, groove_cleanup,
-                              merge_cymbal_cluster)
+                              merge_cymbal_cluster, smooth_velocities)
 
 
 def E(t, inst, conf=1.0, vel=100):
@@ -134,3 +134,39 @@ def test_sustain_keeps_hh_groove():
 def test_sustain_off_disables_suppression():
     evs = [E(10.0, "crash", vel=95), E(10.06, "ride", vel=30)]
     assert len(groove_cleanup(evs, tail_window_s=0)) == 2
+
+
+# --- smooth_velocities (PR-004) ---
+def test_smooth_velocity_compresses_range():
+    evs = [E(10, "kick", vel=v) for v in [10, 20, 60, 100, 127]]
+    out = smooth_velocities(evs)
+    vs = [e.velocity for e in out]
+    assert min(vs) == 50
+    assert max(vs) == 120
+    assert vs[0] < vs[-1]  # order preserved, range compressed
+
+
+def test_smooth_velocity_flat_unchanged():
+    evs = [E(10, "kick", vel=90), E(11, "snare", vel=90)]
+    out = smooth_velocities(evs)
+    assert [e.velocity for e in out] == [90, 90]
+
+
+def test_smooth_velocity_clamps_extremes():
+    evs = [E(10, "kick", vel=1), E(11, "snare", vel=127)]
+    out = smooth_velocities(evs)
+    assert [e.velocity for e in out] == [50, 120]
+
+
+def test_cleanup_velocity_smooth_flag():
+    evs = [E(10, "kick", vel=10), E(11, "snare", vel=127)]
+    out = groove_cleanup(evs, velocity_smooth=True)
+    vs = [e.velocity for e in out]
+    assert min(vs) == 50
+    assert max(vs) == 120
+
+
+def test_cleanup_velocity_smooth_default_off():
+    evs = [E(10, "kick", vel=10), E(11, "snare", vel=127)]
+    out = groove_cleanup(evs)
+    assert [e.velocity for e in out] == [10, 127]

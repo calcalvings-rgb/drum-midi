@@ -101,14 +101,47 @@ def suppress_cymbal_sustain(events, tail_window_s=0.15, vel_ratio=0.5):
     return out
 
 
+def _percentile(sorted_vals, p):
+    """Linear-interpolated percentile from a sorted list (stdlib only)."""
+    if not sorted_vals:
+        return None
+    k = (len(sorted_vals) - 1) * p / 100.0
+    f = int(k)
+    c = f if k.is_integer() else min(f + 1, len(sorted_vals) - 1)
+    if f == c:
+        return sorted_vals[f]
+    frac = k - f
+    return sorted_vals[f] + (sorted_vals[c] - sorted_vals[f]) * frac
+
+
+def smooth_velocities(events, p_lo=5, p_hi=95, out_lo=50, out_hi=120):
+    """Remap the [p_lo, p_hi] velocity percentiles onto [out_lo, out_hi].
+
+    Clamps outliers; leaves a degenerate (flat) distribution untouched.
+    """
+    vels = sorted(e.velocity for e in events)
+    plo = _percentile(vels, p_lo)
+    phi = _percentile(vels, p_hi)
+    if plo is None or phi is None:
+        return events
+    span = phi - plo
+    if span <= 0:
+        return events
+    for e in events:
+        t = max(0.0, min(1.0, (e.velocity - plo) / span))
+        e.velocity = int(round(out_lo + t * (out_hi - out_lo)))
+    return events
+
+
 def groove_cleanup(events, tempo_bpm=None, flatten_cymbal=False,
-                   merge_window=None, tail_window_s=0.15):
+                   merge_window=None, tail_window_s=0.15, velocity_smooth=False):
     """Post-process raw transcribed events into clean MIDI events.
 
     - optional: flatten cymbals to 'cymbal' (when classifier is confused)
     - collapse same-instrument duplicates within adaptive window
     - drop cymbal sustain tails (low-velocity family events trailing a hit)
     - cluster simultaneous events; merge cymbal clusters (if flatten on)
+    - optional: smooth velocities (percentile remap to [50,120])
     """
     if merge_window is None:
         merge_window = adaptive_window(tempo_bpm)
@@ -126,4 +159,6 @@ def groove_cleanup(events, tempo_bpm=None, flatten_cymbal=False,
         if flatten_cymbal:
             cl = merge_cymbal_cluster(cl)
         out.extend(cl)
+    if velocity_smooth:
+        smooth_velocities(out)
     return sorted(out, key=lambda e: e.time)
