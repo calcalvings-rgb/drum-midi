@@ -10,7 +10,7 @@ W = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "d
 os.makedirs(W, exist_ok=True)
 
 GGD_ROOT = r"H:/Drum Grooves/GGD/GGD_Free_Grooves_Vol2"
-ST_ROOT = r"H:/Kontakt Library/Sleep Token - II [MixWave]/MIDI Files/Sleep Token II - Groove Pack LITE"
+ST_ROOT = r"H:/Kontakt Library/Sleep Token - II [MixWave]/MIDI Files/Mixwave Sleep Token II Groove Pack MiDi-ARCADiA"
 
 GGD_GM = {36:"kick",35:"kick",38:"snare",40:"snare",37:"side_stick",39:"rimshot",
            42:"hat_closed",44:"hat_pedal",46:"hat_open",49:"crash1",57:"crash2",
