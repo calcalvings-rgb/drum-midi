@@ -1,14 +1,14 @@
 """Groove generator (level-2, statistik slot). Pure stdlib, no deps.
 
-Memakan stats yang dihasilkan experiments/ggd_analyze2.py (data/{ggd,st}_stats.json)
-dan generate pola drum baru via sampling per-slot.
+Membaca stats yang dihasilkan user dari library MIDI sendiri (format JSON,
+lihat experiments/ggd_analyze2.py sebagai referensi analyzer), lalu generate pola
+drum baru via sampling per-slot.
 
 Output: list[dict] {type, onset_s, velocity} — kontrak sama pipeline transcribe.
 """
 import json, os, random
 from pathlib import Path
 
-_DATA = Path(__file__).resolve().parent.parent.parent / "data"
 FAMILY_DEFAULT_VEL = {
     "kick": 110, "snare": 104, "hat_closed": 100, "hat_open": 92, "ride": 100,
     "crash1": 112, "crash2": 110, "splash": 106, "tom": 100, "ride_bell": 95,
@@ -17,12 +17,23 @@ FAMILY_DEFAULT_VEL = {
 }
 
 
-def load_stats(source="ggd"):
-    """source: 'ggd' | 'st' | path JSON."""
+def load_stats(source):
+    """Baca stats JSON dari path file (wajib path).
+
+    `source` = path ke file JSON (struktur: {style: {slot_probs, slot_act,
+    accents, overall}}). Name lama "ggd"/"st" tidak lagi didukung — stats
+    proprietary tidak disertakan di repo ini; hasilkan dari library MIDI
+    sendiri (lihat experiments/ggd_analyze2.py).
+    """
     if source in ("ggd", "st"):
-        p = _DATA / f"{source}_stats.json"
-    else:
-        p = Path(source)
+        raise ValueError(
+            f'source "{source}" tidak lagi didukung. Stats groove-pack berlisensi '
+            "tidak disertakan di repo ini. Hasilkan stats sendiri dari library "
+            "MIDI Anda (lihat experiments/ggd_analyze2.py) dan berikan path JSON."
+        )
+    p = Path(source)
+    if not p.is_file():
+        raise FileNotFoundError(f"stats file tidak ditemukan: {p}")
     return json.load(open(p, encoding="utf-8"))
 
 
@@ -116,7 +127,7 @@ def generate_groove(stats, style=None, bars=1, subdiv=4, seed=None,
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("--source", default="ggd", help="ggd|st|path")
+    ap.add_argument("--source", required=True, help="path ke stats JSON (hasil analyzer library MIDI sendiri)")
     ap.add_argument("--style")
     ap.add_argument("--bars", type=int, default=1)
     ap.add_argument("--seed", type=int)

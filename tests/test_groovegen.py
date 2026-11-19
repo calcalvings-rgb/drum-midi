@@ -1,4 +1,4 @@
-"""Unit tests untuk groove_g.py (level-2 generator)."""
+"""Unit tests untuk groovegen.py (level-2 generator)."""
 import os
 import sys
 
@@ -9,14 +9,32 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from drum_midi.groovegen import load_stats, generate_groove, pick_style, weighted_choice
 
 
-def test_load_ggd_stats_has_slots():
-    s = load_stats("ggd")
-    assert s
-    assert any(st.get("slot_probs") for st in s.values())
+# Fixture sintetik — stats dibuat manual (bukan data proprietary).
+SYNTH_STATS = {
+    "rock_song": {
+        "slot_probs": {
+            "0": {"kick": 0.0, "snare": 0.0, "hat_closed": 1.0},
+            "4": {"kick": 1.0, "snare": 0.0, "hat_closed": 0.0},
+            "8": {"kick": 0.0, "snare": 1.0, "hat_closed": 0.0},
+        },
+        "slot_act": {"0": 1.0, "4": 1.0, "8": 1.0},
+        "accents": {"kick": 110, "snare": 100, "hat_closed": 90},
+        "overall": {"density": 0.6},
+    },
+}
+
+
+def test_load_stats_requires_path():
+    with pytest.raises(ValueError):
+        load_stats("ggd")
+    with pytest.raises(ValueError):
+        load_stats("st")
+    with pytest.raises(FileNotFoundError):
+        load_stats("/nonexistent/stats.json")
 
 
 def test_generate_deterministic_seed():
-    s = load_stats("ggd")
+    s = SYNTH_STATS
     style = pick_style(s, seed=3)
     a = generate_groove(s, style=style, seed=9, bars=2)
     b = generate_groove(s, style=style, seed=9, bars=2)
@@ -26,7 +44,7 @@ def test_generate_deterministic_seed():
 
 
 def test_generate_sorted_onset():
-    s = load_stats("ggd")
+    s = SYNTH_STATS
     n = generate_groove(s, seed=1, bars=1)
     ons = [x["onset_s"] for x in n]
     assert ons == sorted(ons), "onset harus sorted"

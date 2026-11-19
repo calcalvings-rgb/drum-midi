@@ -115,3 +115,13 @@ Synthetic fixtures: `python -m tests.make_fixtures`.
 Note: FL Studio uses the C-2 convention — kick 36 shows as C1 in FL, not C3. Confirm pitch by MIDI number, not octave label.
 
 > Disclaimer: measurement statistics and mappings derived from commercially-licensed groove packs (e.g. Sleep Token II by MixWave, GetGood Drums) are kept local-only and are not part of this repository.
+
+## Use your own MIDI library
+
+The groove generator (`drum_midi.groovegen`) works from **statistics you derive yourself** — it ships with no licensed groove data. Analyze the MIDI files you own (your own recordings, or packs you are licensed to use) with `experiments/ggd_analyze2.py` as the reference analyzer, output the JSON stats, and pass the path:
+
+```powershell
+.venv\Scripts\python.exe -m drum_midi.groovegen --source C:/path/to/your_stats.json --bars 2 --seed 7
+```
+
+`source` must be a path to your own stats JSON; the legacy `ggd`/`st` sources are gone. Per-style `slot_probs`/`slot_act`/`accents`/`overall` shape the generated groove — the engine is library-agnostic, so any MIDI corpus you have the rights to works.
