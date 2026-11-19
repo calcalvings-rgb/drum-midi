@@ -184,7 +184,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(obj).encode())
 
     def _deny(self, msg="forbidden", code=403):
-        self._json({"error": msg}, code)
+        return self._json({"error": msg}, code)
 
     def _read_body(self) -> dict:
         n = int(self.headers.get("Content-Length") or 0)
@@ -276,9 +276,9 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 return self._deny(f"unknown action: {action}", 400)
             self.server.notes = notes
-            self._json({"count": len(notes), "notes": notes})
+            return self._json({"count": len(notes), "notes": notes})
         except (KeyError, ValueError, TypeError, IndexError) as e:
-            self._json({"error": f"{type(e).__name__}: {e}"}, 400)
+            return self._json({"error": f"{type(e).__name__}: {e}"}, 400)
 
     def _export(self, body):
         notes = getattr(self.server, "notes", None)
