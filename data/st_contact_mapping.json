@@ -1,0 +1,282 @@
+{
+ "0": {
+  "label": "Kick Left",
+  "note": 35,
+  "family": "kick"
+ },
+ "1": {
+  "label": "Kick Right",
+  "note": 36,
+  "family": "kick"
+ },
+ "2": {
+  "label": "Snare Center",
+  "note": 38,
+  "family": "snare"
+ },
+ "3": {
+  "label": "Snare Rimshot",
+  "note": 40,
+  "family": "snare"
+ },
+ "4": {
+  "label": "Snare Flam",
+  "note": 39,
+  "family": "snare"
+ },
+ "5": {
+  "label": "Snare Side Stick",
+  "note": 37,
+  "family": "snare"
+ },
+ "6": {
+  "label": "Snare Roll",
+  "note": 25,
+  "family": "snare"
+ },
+ "7": {
+  "label": "RackTom1 Hit",
+  "note": 50,
+  "family": "tom"
+ },
+ "8": {
+  "label": "RackTom1 Rim",
+  "note": 23,
+  "family": "tom"
+ },
+ "9": {
+  "label": "RackTom2 Hit",
+  "note": 47,
+  "family": "tom"
+ },
+ "10": {
+  "label": "RackTom2 Rim",
+  "note": 21,
+  "family": "tom"
+ },
+ "11": {
+  "label": "FloorTom Hit",
+  "note": 43,
+  "family": "tom"
+ },
+ "12": {
+  "label": "FloorTom Rim",
+  "note": 19,
+  "family": "tom"
+ },
+ "13": {
+  "label": "HH Tip Tight",
+  "note": 73,
+  "family": "hat_closed"
+ },
+ "14": {
+  "label": "HH Tip Closed",
+  "note": 75,
+  "family": "hat_closed"
+ },
+ "15": {
+  "label": "HH Tip Open1",
+  "note": 83,
+  "family": "hat_open"
+ },
+ "16": {
+  "label": "HH Tip Open2",
+  "note": 84,
+  "family": "hat_open"
+ },
+ "17": {
+  "label": "HH Tip Open3",
+  "note": 85,
+  "family": "hat_open"
+ },
+ "18": {
+  "label": "HH Edge Tight",
+  "note": 74,
+  "family": "hat_closed"
+ },
+ "19": {
+  "label": "HH Edge Closed",
+  "note": 42,
+  "family": "hat_closed"
+ },
+ "20": {
+  "label": "HH Edge Open1",
+  "note": 77,
+  "family": "hat_open"
+ },
+ "21": {
+  "label": "HH Edge Open2",
+  "note": 78,
+  "family": "hat_open"
+ },
+ "22": {
+  "label": "HH Edge Open3",
+  "note": 46,
+  "family": "hat_open"
+ },
+ "23": {
+  "label": "HH Pedal Closed",
+  "note": 44,
+  "family": "hat_pedal"
+ },
+ "24": {
+  "label": "HH Pedal Open",
+  "note": 81,
+  "family": "hat_open"
+ },
+ "25": {
+  "label": "HH Tip CC",
+  "note": 33,
+  "family": "hat_pedal"
+ },
+ "26": {
+  "label": "HH Edge CC",
+  "note": 32,
+  "family": "hat_pedal"
+ },
+ "27": {
+  "label": "Ride Bow",
+  "note": 51,
+  "family": "ride"
+ },
+ "28": {
+  "label": "Ride Bell Tip",
+  "note": 60,
+  "family": "ride_bell"
+ },
+ "29": {
+  "label": "Ride Bell Edge",
+  "note": 53,
+  "family": "ride"
+ },
+ "30": {
+  "label": "Ride Crash",
+  "note": 59,
+  "family": "ride"
+ },
+ "31": {
+  "label": "Ride ManualChoke",
+  "note": 71,
+  "family": "ride"
+ },
+ "32": {
+  "label": "Crash1 Hit",
+  "note": 49,
+  "family": "crash1"
+ },
+ "33": {
+  "label": "Crash1 Choke",
+  "note": 91,
+  "family": "crash1"
+ },
+ "34": {
+  "label": "Crash1 ManualChoke",
+  "note": 61,
+  "family": "crash1"
+ },
+ "35": {
+  "label": "Crash2 Hit",
+  "note": 57,
+  "family": "crash2"
+ },
+ "36": {
+  "label": "Crash2 Choke",
+  "note": 93,
+  "family": "crash2"
+ },
+ "37": {
+  "label": "Crash2 ManualChoke",
+  "note": 69,
+  "family": "crash2"
+ },
+ "38": {
+  "label": "Crash3 Hit",
+  "note": 54,
+  "family": "crash2"
+ },
+ "39": {
+  "label": "Crash3 Choke",
+  "note": 103,
+  "family": "crash2"
+ },
+ "40": {
+  "label": "Crash3 ManualChoke",
+  "note": 66,
+  "family": "crash2"
+ },
+ "41": {
+  "label": "Crash4 Hit",
+  "note": 95,
+  "family": "crash2"
+ },
+ "43": {
+  "label": "Splash1 Hit",
+  "note": 107,
+  "family": "splash"
+ },
+ "44": {
+  "label": "Splash1 Choke",
+  "note": 55,
+  "family": "splash"
+ },
+ "45": {
+  "label": "Splash1 ManualChoke",
+  "note": 99,
+  "family": "splash"
+ },
+ "46": {
+  "label": "Splash2 Hit",
+  "note": 67,
+  "family": "splash"
+ },
+ "47": {
+  "label": "Splash2 Choke",
+  "note": 56,
+  "family": "splash"
+ },
+ "48": {
+  "label": "Splash2 ManualChoke",
+  "note": 94,
+  "family": "splash"
+ },
+ "49": {
+  "label": "Stack2 BowTip",
+  "note": 68,
+  "family": "stack"
+ },
+ "50": {
+  "label": "Stack2",
+  "note": 108,
+  "family": "stack"
+ },
+ "51": {
+  "label": "Stack1 BowTip",
+  "note": 109,
+  "family": "stack"
+ },
+ "52": {
+  "label": "Stack1",
+  "note": 62,
+  "family": "stack"
+ },
+ "53": {
+  "label": "China Hit",
+  "note": 63,
+  "family": "china"
+ },
+ "54": {
+  "label": "China Choke",
+  "note": 52,
+  "family": "china"
+ },
+ "55": {
+  "label": "China ManualChoke",
+  "note": 101,
+  "family": "china"
+ },
+ "56": {
+  "label": "Sticks",
+  "note": 64,
+  "family": "sticks"
+ }
+}

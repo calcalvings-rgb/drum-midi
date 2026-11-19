@@ -16,16 +16,25 @@ GGD_GM = {36:"kick",35:"kick",38:"snare",40:"snare",37:"side_stick",39:"rimshot"
            42:"hat_closed",44:"hat_pedal",46:"hat_open",49:"crash1",57:"crash2",
            51:"ride",53:"ride_bell",41:"tom",43:"tom",45:"tom",47:"tom",48:"tom",50:"tom"}
 
-ST_PITCH = {35:"kick",36:"kick",25:"snare",37:"snare",38:"snare",39:"snare",40:"snare",
-            19:"tom",21:"tom",23:"tom",41:"tom",43:"tom",45:"tom",47:"tom",48:"tom",50:"tom",
-            32:"hat_pedal",33:"hat_pedal",42:"hat_closed",44:"hat_pedal",46:"hat_open",
-            73:"hat_closed",74:"hat_closed",75:"hat_closed",76:"hat_closed",77:"hat_open",
-            78:"hat_open",79:"hat_open",81:"hat_open",83:"hat_open",84:"hat_open",85:"hat_open",
-            49:"crash1",51:"ride",52:"china",53:"ride_bell",54:"crash2",55:"splash",56:"splash",
-            57:"crash2",59:"ride",60:"ride",61:"crash1",62:"stack",63:"stack",64:"china",
-            66:"crash2",67:"splash",68:"splash",69:"crash2",71:"ride",90:"crash1",91:"crash1",
-            92:"crash2",93:"crash2",94:"splash",95:"crash2",98:"splash",99:"splash",100:"china",
-            101:"china",102:"crash2",103:"crash2",107:"crash2",108:"stack",109:"stack",31:"sticks"}
+ST_NKA = r"C:/Users/ccalv/OneDrive/Documents/Sleep Token - II/Data/defaultforhermes.nka"
+ST_OFFSET = 35  # groove pitch + 35 -> note Kontakt (diverifikasi via distribusi musikal)
+
+
+def load_st_map():
+    """Baca user-mapping Kontakt (*.nka) -> {slot: {label, note, family}}."""
+    txt = open(ST_NKA, encoding="utf-8").read()
+    nums = [int(l.strip()) for l in txt.splitlines() if l.strip() and not l.startswith("%")]
+    fam = {0:"kick",1:"kick",2:"snare",3:"snare",4:"snare",5:"snare",6:"snare",
+           7:"tom",8:"tom",9:"tom",10:"tom",11:"tom",12:"tom",
+           13:"hat_closed",14:"hat_closed",15:"hat_open",16:"hat_open",17:"hat_open",
+           18:"hat_closed",19:"hat_closed",20:"hat_open",21:"hat_open",22:"hat_open",
+           23:"hat_pedal",24:"hat_open",25:"hat_pedal",26:"hat_pedal",
+           27:"ride",28:"ride_bell",29:"ride",30:"ride",31:"ride",
+           32:"crash1",33:"crash1",34:"crash1",35:"crash2",36:"crash2",37:"crash2",
+           38:"crash2",39:"crash2",40:"crash2",41:"crash2",43:"splash",44:"splash",
+           45:"splash",46:"splash",47:"splash",48:"splash",49:"stack",50:"stack",
+           51:"stack",52:"stack",53:"china",54:"china",55:"china",56:"sticks"}
+    return {nums[i]: fam.get(i, "other") for i in range(len(nums)) if nums[i] != -1}
 
 def parse(path):
     mid = mido.MidiFile(path)
@@ -89,7 +98,8 @@ def mine(root, pitch_map, offset=0):
 
 ggd = mine(GGD_ROOT, GGD_GM)
 json.dump(ggd, open(os.path.join(W,"ggd_stats.json"),"w"), indent=1)
-st = mine(ST_ROOT, ST_PITCH, offset=24)
+st_map = load_st_map()
+st = mine(ST_ROOT, st_map, offset=ST_OFFSET)
 json.dump(st, open(os.path.join(W,"st_stats.json"),"w"), indent=1)
 
 print("=== GGD ===")

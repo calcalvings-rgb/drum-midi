@@ -5,105 +5,109 @@
   "ghost_ratio": 0.099,
   "slot_probs": {
    "0": {
-    "snare": 0.4545,
-    "hat_open": 0.0909,
-    "tom": 0.2727,
+    "kick": 0.4545,
     "other": 0.0909,
-    "ride_bell": 0.0909
+    "crash2": 0.2727,
+    "snare": 0.0909,
+    "sticks": 0.0909
    },
    "1": {
-    "snare": 0.375,
-    "tom": 0.375,
-    "ride_bell": 0.125,
+    "crash1": 0.125,
+    "crash2": 0.375,
+    "kick": 0.25,
+    "sticks": 0.125,
     "hat_pedal": 0.125
    },
    "2": {
-    "snare": 0.4286,
-    "tom": 0.2857,
-    "other": 0.1429,
-    "sticks": 0.1429
+    "crash1": 0.1429,
+    "crash2": 0.2857,
+    "kick": 0.2857,
+    "snare": 0.1429,
+    "hat_closed": 0.1429
    },
    "3": {
-    "snare": 0.5455,
-    "tom": 0.1818,
-    "hat_open": 0.0909,
-    "ride_bell": 0.0909,
-    "other": 0.0909
+    "kick": 0.4545,
+    "crash2": 0.2727,
+    "crash1": 0.0909,
+    "sticks": 0.0909,
+    "snare": 0.0909
    },
    "4": {
-    "tom": 0.4,
+    "crash2": 0.4,
+    "crash1": 0.2,
+    "sticks": 0.1,
     "snare": 0.2,
-    "ride_bell": 0.1,
-    "other": 0.2,
     "hat_pedal": 0.1
    },
    "5": {
-    "snare": 0.2857,
-    "tom": 0.5714,
+    "kick": 0.2857,
+    "crash2": 0.5714,
     "hat_pedal": 0.1429
    },
    "6": {
-    "snare": 0.375,
-    "tom": 0.375,
-    "other": 0.25
+    "kick": 0.375,
+    "crash2": 0.375,
+    "snare": 0.25
    },
    "7": {
-    "snare": 0.5556,
-    "other": 0.3333,
-    "sticks": 0.1111
+    "crash1": 0.2222,
+    "kick": 0.3333,
+    "snare": 0.3333,
+    "hat_closed": 0.1111
    },
    "8": {
-    "snare": 0.25,
-    "tom": 0.125,
-    "other": 0.375,
-    "ride_bell": 0.125,
+    "crash1": 0.25,
+    "crash2": 0.125,
+    "snare": 0.375,
+    "sticks": 0.125,
     "hat_pedal": 0.125
    },
    "9": {
-    "tom": 0.4,
-    "snare": 0.1,
-    "sticks": 0.2,
-    "ride_bell": 0.1,
-    "other": 0.2
+    "crash2": 0.4,
+    "kick": 0.1,
+    "hat_closed": 0.2,
+    "sticks": 0.1,
+    "snare": 0.2
    },
    "10": {
-    "tom": 0.3333,
-    "other": 0.5,
-    "snare": 0.1667
+    "crash2": 0.3333,
+    "snare": 0.5,
+    "kick": 0.1667
    },
    "11": {
-    "snare": 0.3333,
-    "other": 0.4167,
-    "sticks": 0.0833,
-    "ride_bell": 0.1667
+    "kick": 0.3333,
+    "snare": 0.4167,
+    "hat_closed": 0.0833,
+    "sticks": 0.1667
    },
    "12": {
-    "other": 0.2727,
     "snare": 0.2727,
-    "hat_open": 0.0909,
-    "sticks": 0.1818,
-    "tom": 0.0909,
-    "ride_bell": 0.0909
+    "crash1": 0.0909,
+    "crash2": 0.1818,
+    "hat_closed": 0.1818,
+    "kick": 0.1818,
+    "sticks": 0.0909
    },
    "13": {
-    "tom": 0.4286,
-    "snare": 0.1429,
+    "crash2": 0.4286,
+    "kick": 0.1429,
     "hat_pedal": 0.1429,
-    "ride_bell": 0.1429,
-    "other": 0.1429
+    "sticks": 0.1429,
+    "snare": 0.1429
    },
    "14": {
-    "hat_closed": 0.125,
-    "kick": 0.25,
-    "snare": 0.125,
-    "hat_open": 0.125,
     "ride": 0.125,
-    "other": 0.25
+    "hat_open": 0.25,
+    "kick": 0.125,
+    "crash2": 0.125,
+    "stack": 0.125,
+    "snare": 0.25
    },
    "15": {
-    "other": 0.1111,
-    "tom": 0.3333,
-    "snare": 0.5556
+    "snare": 0.1111,
+    "crash2": 0.3333,
+    "kick": 0.3333,
+    "crash1": 0.2222
    }
   },
   "slot_act": {
@@ -125,28 +129,30 @@
    "7": 1.0
   },
   "overall": {
-   "snare": 0.331,
-   "hat_open": 0.0282,
-   "tom": 0.2465,
-   "other": 0.2113,
-   "hat_closed": 0.007,
-   "sticks": 0.0493,
+   "kick": 0.2465,
+   "other": 0.007,
+   "crash1": 0.0845,
+   "crash2": 0.2676,
+   "snare": 0.2113,
+   "ride": 0.007,
+   "hat_closed": 0.0493,
    "hat_pedal": 0.0352,
-   "kick": 0.0141,
-   "ride_bell": 0.0704,
-   "ride": 0.007
+   "hat_open": 0.0141,
+   "sticks": 0.0704,
+   "stack": 0.007
   },
   "accents": {
-   "snare": 91.1,
-   "hat_open": 101.5,
-   "tom": 98.6,
-   "other": 99.5,
-   "hat_closed": 120.0,
-   "sticks": 120.3,
+   "kick": 92.5,
+   "other": 124.0,
+   "crash1": 86.9,
+   "crash2": 98.3,
+   "snare": 99.5,
+   "ride": 120.0,
+   "hat_closed": 120.3,
    "hat_pedal": 119.4,
-   "kick": 104.5,
-   "ride_bell": 111.9,
-   "ride": 74.0
+   "hat_open": 104.5,
+   "sticks": 111.9,
+   "stack": 74.0
   }
  },
  "Song 02 (135 BPM)": {
@@ -155,77 +161,79 @@
   "ghost_ratio": 0.155,
   "slot_probs": {
    "0": {
-    "snare": 0.5,
-    "hat_open": 0.3333,
-    "hat_pedal": 0.1667
+    "kick": 0.5,
+    "other": 0.3333,
+    "splash": 0.1667
    },
    "1": {
-    "kick": 0.5,
-    "other": 0.5
+    "hat_open": 0.5,
+    "snare": 0.5
    },
    "2": {
-    "snare": 0.4,
-    "hat_pedal": 0.2,
-    "other": 0.2,
-    "sticks": 0.2
+    "kick": 0.4,
+    "splash": 0.2,
+    "snare": 0.2,
+    "hat_closed": 0.2
    },
    "3": {
-    "snare": 0.6667,
-    "kick": 0.3333
+    "kick": 0.6667,
+    "hat_open": 0.3333
    },
    "4": {
-    "hat_open": 0.75,
-    "tom": 0.25
-   },
-   "5": {
-    "other": 0.75,
-    "snare": 0.25
-   },
-   "6": {
-    "other": 0.6667,
-    "snare": 0.1667,
-    "hat_open": 0.1667
-   },
-   "7": {
-    "snare": 1.0
-   },
-   "8": {
-    "other": 0.4286,
-    "hat_open": 0.4286,
-    "snare": 0.1429
-   },
-   "9": {
-    "snare": 0.5,
-    "other": 0.5
-   },
-   "10": {
-    "snare": 0.75,
+    "crash2": 0.5,
+    "splash": 0.25,
     "other": 0.25
    },
-   "11": {
-    "snare": 0.8,
-    "other": 0.2
-   },
-   "12": {
-    "ride_bell": 0.1667,
-    "hat_open": 0.3333,
-    "other": 0.3333,
-    "kick": 0.1667
-   },
-   "13": {
-    "other": 0.5,
-    "snare": 0.25,
+   "5": {
+    "snare": 0.75,
     "kick": 0.25
    },
-   "14": {
-    "other": 0.75,
+   "6": {
+    "snare": 0.6667,
+    "kick": 0.1667,
+    "other": 0.1667
+   },
+   "7": {
+    "kick": 1.0
+   },
+   "8": {
+    "snare": 0.4286,
+    "other": 0.2857,
+    "kick": 0.1429,
+    "crash2": 0.1429
+   },
+   "9": {
+    "kick": 0.5,
+    "snare": 0.5
+   },
+   "10": {
+    "kick": 0.75,
     "snare": 0.25
    },
-   "15": {
+   "11": {
+    "kick": 0.8,
+    "snare": 0.2
+   },
+   "12": {
     "sticks": 0.1667,
+    "crash2": 0.3333,
+    "snare": 0.3333,
+    "hat_open": 0.1667
+   },
+   "13": {
+    "snare": 0.5,
+    "kick": 0.25,
+    "hat_open": 0.25
+   },
+   "14": {
+    "snare": 0.75,
+    "kick": 0.25
+   },
+   "15": {
+    "hat_closed": 0.1667,
+    "snare": 0.3333,
     "other": 0.3333,
-    "hat_open": 0.3333,
-    "snare": 0.1667
+    "kick": 0.1667
    }
   },
   "slot_act": {
@@ -247,24 +255,24 @@
    "9": 1.0
   },
   "overall": {
+   "kick": 0.338,
+   "other": 0.1127,
+   "crash2": 0.0704,
    "snare": 0.338,
-   "hat_open": 0.1831,
-   "other": 0.338,
-   "ride_bell": 0.0141,
-   "sticks": 0.0282,
-   "kick": 0.0563,
-   "hat_pedal": 0.0282,
-   "tom": 0.0141
+   "sticks": 0.0141,
+   "hat_closed": 0.0282,
+   "hat_open": 0.0563,
+   "splash": 0.0423
   },
   "accents": {
-   "snare": 95.2,
-   "hat_open": 121.5,
-   "other": 86.0,
-   "ride_bell": 127.0,
-   "sticks": 120.0,
-   "kick": 120.0,
-   "hat_pedal": 123.5,
-   "tom": 127.0
+   "kick": 95.2,
+   "other": 121.8,
+   "crash2": 121.0,
+   "snare": 86.0,
+   "sticks": 127.0,
+   "hat_closed": 120.0,
+   "hat_open": 120.0,
+   "splash": 124.7
   }
  },
  "Song 03 (170 BPM)": {
@@ -273,76 +281,78 @@
   "ghost_ratio": 0.198,
   "slot_probs": {
    "0": {
-    "snare": 0.75,
+    "kick": 0.75,
     "splash": 0.25
    },
    "1": {
-    "other": 0.25,
-    "snare": 0.5,
-    "kick": 0.25
+    "snare": 0.25,
+    "crash1": 0.25,
+    "kick": 0.25,
+    "hat_open": 0.25
    },
    "2": {
-    "snare": 0.3333,
-    "other": 0.6667
+    "kick": 0.3333,
+    "snare": 0.6667
    },
    "3": {
-    "hat_open": 0.4,
     "other": 0.4,
-    "tom": 0.2
+    "snare": 0.4,
+    "crash2": 0.2
    },
    "4": {
-    "snare": 1.0
+    "kick": 1.0
    },
    "5": {
-    "other": 0.8,
-    "sticks": 0.2
+    "snare": 0.8,
+    "hat_closed": 0.2
    },
    "6": {
-    "other": 0.8,
-    "kick": 0.2
-   },
-   "7": {
-    "snare": 0.2857,
-    "other": 0.2857,
-    "hat_open": 0.2857,
-    "tom": 0.1429
-   },
-   "8": {
-    "snare": 0.6667,
-    "other": 0.3333
-   },
-   "9": {
-    "snare": 0.2857,
-    "other": 0.4286,
-    "kick": 0.1429,
-    "sticks": 0.1429
-   },
-   "10": {
-    "other": 1.0
-   },
-   "11": {
-    "other": 0.5,
-    "hat_open": 0.3333,
-    "hat_pedal": 0.1667
-   },
-   "12": {
-    "snare": 0.5,
-    "other": 0.25,
-    "kick": 0.25
-   },
-   "13": {
-    "other": 0.8571,
-    "kick": 0.1429
-   },
-   "14": {
-    "other": 0.6,
-    "sticks": 0.2,
+    "snare": 0.8,
     "hat_open": 0.2
    },
-   "15": {
-    "other": 0.2857,
-    "hat_open": 0.2857,
+   "7": {
+    "kick": 0.2857,
     "snare": 0.2857,
+    "other": 0.2857,
+    "crash2": 0.1429
+   },
+   "8": {
+    "kick": 0.6667,
+    "snare": 0.3333
+   },
+   "9": {
+    "kick": 0.4286,
+    "snare": 0.2857,
+    "hat_open": 0.1429,
+    "hat_closed": 0.1429
+   },
+   "10": {
+    "snare": 1.0
+   },
+   "11": {
+    "snare": 0.5,
+    "other": 0.3333,
+    "splash": 0.1667
+   },
+   "12": {
+    "kick": 0.5,
+    "snare": 0.25,
+    "hat_open": 0.25
+   },
+   "13": {
+    "snare": 0.8571,
+    "hat_open": 0.1429
+   },
+   "14": {
+    "snare": 0.6,
+    "hat_closed": 0.2,
+    "other": 0.2
+   },
+   "15": {
+    "snare": 0.2857,
+    "other": 0.2857,
+    "crash1": 0.1429,
+    "hat_open": 0.1429,
     "kick": 0.1429
    }
   },
@@ -365,24 +375,24 @@
    "8": 1.0
   },
   "overall": {
-   "snare": 0.2346,
-   "splash": 0.0123,
-   "hat_open": 0.1111,
-   "other": 0.4938,
-   "tom": 0.0247,
-   "hat_pedal": 0.0123,
-   "sticks": 0.037,
-   "kick": 0.0741
+   "kick": 0.2222,
+   "splash": 0.0247,
+   "other": 0.1111,
+   "snare": 0.4815,
+   "crash1": 0.0247,
+   "crash2": 0.0247,
+   "hat_closed": 0.037,
+   "hat_open": 0.0741
   },
   "accents": {
-   "snare": 121.1,
-   "splash": 127.0,
-   "hat_open": 121.2,
-   "other": 82.5,
-   "tom": 124.5,
-   "hat_pedal": 116.0,
-   "sticks": 127.0,
-   "kick": 118.0
+   "kick": 121.3,
+   "splash": 121.5,
+   "other": 121.2,
+   "snare": 81.5,
+   "crash1": 119.0,
+   "crash2": 124.5,
+   "hat_closed": 127.0,
+   "hat_open": 118.0
   }
  },
  "Song 04 (170 BPM)": {
@@ -391,92 +401,92 @@
   "ghost_ratio": 0.098,
   "slot_probs": {
    "0": {
-    "snare": 0.1667,
-    "hat_open": 0.3333,
-    "other": 0.4167,
-    "tom": 0.0833
+    "kick": 0.1667,
+    "other": 0.3333,
+    "snare": 0.4167,
+    "splash": 0.0833
    },
    "1": {
-    "snare": 0.1667,
-    "other": 0.5,
-    "sticks": 0.1667,
-    "kick": 0.1667
+    "kick": 0.1667,
+    "snare": 0.5,
+    "hat_closed": 0.1667,
+    "hat_open": 0.1667
    },
    "2": {
-    "snare": 0.2857,
-    "hat_open": 0.2857,
-    "other": 0.1429,
-    "kick": 0.1429,
-    "tom": 0.1429
+    "kick": 0.2857,
+    "crash2": 0.4286,
+    "snare": 0.1429,
+    "hat_open": 0.1429
    },
    "3": {
-    "snare": 0.5714,
-    "other": 0.2857,
-    "kick": 0.1429
+    "kick": 0.5714,
+    "snare": 0.2857,
+    "hat_open": 0.1429
    },
    "4": {
-    "hat_open": 0.3333,
-    "other": 0.2222,
-    "tom": 0.1111,
-    "snare": 0.2222,
-    "kick": 0.1111
+    "other": 0.3333,
+    "kick": 0.3333,
+    "snare": 0.1111,
+    "splash": 0.1111,
+    "hat_open": 0.1111
    },
    "5": {
-    "snare": 0.2,
-    "hat_open": 0.2,
-    "other": 0.4,
-    "kick": 0.2
+    "kick": 0.2,
+    "other": 0.2,
+    "snare": 0.4,
+    "hat_open": 0.2
    },
    "6": {
-    "other": 0.6,
-    "snare": 0.4
+    "snare": 0.6,
+    "kick": 0.4
    },
    "7": {
-    "snare": 0.5,
-    "other": 0.5
+    "kick": 0.625,
+    "snare": 0.375
    },
    "8": {
-    "other": 0.4667,
-    "hat_open": 0.2,
-    "tom": 0.2667,
-    "snare": 0.0667
+    "snare": 0.4,
+    "other": 0.2,
+    "kick": 0.0667,
+    "splash": 0.1333,
+    "crash1": 0.0667,
+    "crash2": 0.1333
    },
    "9": {
-    "snare": 0.5,
-    "other": 0.5
+    "kick": 0.5,
+    "snare": 0.5
    },
    "10": {
-    "snare": 0.4444,
-    "other": 0.2222,
-    "hat_open": 0.1111,
-    "kick": 0.2222
+    "kick": 0.4444,
+    "snare": 0.2222,
+    "other": 0.1111,
+    "hat_open": 0.2222
    },
    "11": {
-    "snare": 0.1667,
-    "other": 0.6667,
+    "kick": 0.1667,
+    "snare": 0.6667,
     "china": 0.1667
    },
    "12": {
-    "hat_open": 0.1111,
-    "other": 0.2222,
-    "tom": 0.3333,
-    "snare": 0.3333
+    "other": 0.1111,
+    "snare": 0.2222,
+    "splash": 0.3333,
+    "kick": 0.3333
    },
    "13": {
-    "snare": 0.4286,
-    "other": 0.2857,
-    "kick": 0.2857
+    "kick": 0.7143,
+    "hat_open": 0.2857
    },
    "14": {
-    "other": 0.5556,
+    "snare": 0.5556,
+    "other": 0.1111,
     "hat_open": 0.1111,
-    "kick": 0.1111,
-    "snare": 0.2222
+    "kick": 0.2222
    },
    "15": {
-    "other": 0.3333,
-    "snare": 0.5,
-    "kick": 0.1667
+    "snare": 0.3333,
+    "kick": 0.5,
+    "hat_open": 0.1667
    }
   },
   "slot_act": {
@@ -498,21 +508,25 @@
    "9": 1.0
   },
   "overall": {
-   "snare": 0.2951,
-   "hat_open": 0.1311,
-   "other": 0.3852,
-   "tom": 0.082,
-   "kick": 0.0902,
-   "sticks": 0.0082,
+   "kick": 0.3279,
+   "other": 0.1148,
+   "crash2": 0.041,
+   "snare": 0.3443,
+   "splash": 0.0574,
+   "hat_open": 0.0902,
+   "hat_closed": 0.0082,
+   "crash1": 0.0082,
    "china": 0.0082
   },
   "accents": {
-   "snare": 97.9,
-   "hat_open": 108.4,
-   "other": 91.7,
-   "tom": 117.2,
-   "kick": 122.2,
-   "sticks": 126.0,
+   "kick": 97.3,
+   "other": 105.8,
+   "crash2": 127.0,
+   "snare": 92.2,
+   "splash": 113.0,
+   "hat_open": 122.2,
+   "hat_closed": 126.0,
+   "crash1": 68.0,
    "china": 73.0
   }
  },
@@ -522,90 +536,85 @@
   "ghost_ratio": 0.091,
   "slot_probs": {
    "0": {
-    "snare": 0.1786,
-    "tom": 0.3929,
-    "hat_open": 0.3929,
-    "other": 0.0357
+    "kick": 0.2143,
+    "other": 0.7857
    },
    "1": {
-    "tom": 0.3333,
-    "other": 0.3333,
-    "snare": 0.3333
+    "splash": 0.3333,
+    "snare": 0.3333,
+    "kick": 0.3333
    },
    "2": {
-    "other": 0.1538,
-    "snare": 0.6154,
-    "tom": 0.2308
+    "snare": 0.1538,
+    "kick": 0.5385,
+    "splash": 0.2308,
+    "crash1": 0.0769
    },
    "3": {
-    "tom": 0.6667,
-    "hat_open": 0.3333
+    "other": 0.6667,
+    "crash2": 0.3333
    },
    "4": {
-    "snare": 0.1923,
-    "tom": 0.3846,
-    "hat_open": 0.3846,
-    "sticks": 0.0385
+    "kick": 0.1923,
+    "other": 0.7692,
+    "hat_closed": 0.0385
    },
    "5": {
-    "snare": 0.1429,
-    "tom": 0.1429,
     "kick": 0.1429,
-    "sticks": 0.1429,
-    "other": 0.4286
+    "splash": 0.1429,
+    "hat_open": 0.1429,
+    "hat_closed": 0.1429,
+    "snare": 0.4286
    },
    "6": {
-    "other": 0.3636,
-    "hat_open": 0.1818,
     "snare": 0.3636,
-    "tom": 0.0909
+    "other": 0.2727,
+    "kick": 0.2727,
+    "splash": 0.0909
    },
    "7": {
-    "other": 0.25,
-    "snare": 0.625,
-    "hat_open": 0.125
+    "kick": 0.75,
+    "snare": 0.125,
+    "other": 0.125
    },
    "8": {
-    "other": 0.3226,
-    "tom": 0.3226,
-    "hat_open": 0.2903,
-    "snare": 0.0323,
+    "snare": 0.3226,
+    "other": 0.6129,
+    "kick": 0.0323,
     "hat_pedal": 0.0323
    },
    "9": {
-    "tom": 0.5,
-    "snare": 0.5
+    "crash2": 0.5,
+    "kick": 0.5
    },
    "10": {
-    "snare": 0.6667,
-    "tom": 0.0833,
-    "hat_open": 0.0833,
-    "other": 0.1667
+    "kick": 0.6667,
+    "other": 0.1667,
+    "snare": 0.1667
    },
    "11": {
-    "other": 0.8182,
-    "tom": 0.0909,
-    "hat_open": 0.0909
+    "kick": 0.2727,
+    "snare": 0.5455,
+    "other": 0.1818
    },
    "12": {
-    "other": 0.1481,
-    "tom": 0.3333,
-    "hat_open": 0.3704,
-    "snare": 0.1481
+    "snare": 0.1481,
+    "other": 0.7037,
+    "kick": 0.1481
    },
    "13": {
-    "snare": 0.6,
-    "other": 0.4
+    "kick": 0.6,
+    "snare": 0.4
    },
    "14": {
-    "snare": 0.1818,
-    "other": 0.6364,
-    "kick": 0.1818
+    "kick": 0.1818,
+    "snare": 0.6364,
+    "hat_open": 0.1818
    },
    "15": {
-    "snare": 0.1818,
     "kick": 0.1818,
-    "other": 0.6364
+    "hat_open": 0.1818,
+    "snare": 0.6364
    }
   },
   "slot_act": {
@@ -627,21 +636,25 @@
    "9": 1.0
   },
   "overall": {
-   "snare": 0.2392,
-   "tom": 0.244,
-   "hat_open": 0.2201,
-   "other": 0.2584,
-   "kick": 0.0239,
-   "sticks": 0.0096,
+   "kick": 0.2536,
+   "other": 0.4306,
+   "snare": 0.2344,
+   "splash": 0.0287,
+   "hat_open": 0.0239,
+   "hat_closed": 0.0096,
+   "crash1": 0.0048,
+   "crash2": 0.0096,
    "hat_pedal": 0.0048
   },
   "accents": {
-   "snare": 110.6,
-   "tom": 120.3,
-   "hat_open": 118.0,
-   "other": 93.1,
-   "kick": 107.2,
-   "sticks": 127.0,
+   "kick": 110.1,
+   "other": 118.6,
+   "snare": 91.6,
+   "splash": 127.0,
+   "hat_open": 107.2,
+   "hat_closed": 127.0,
+   "crash1": 102.0,
+   "crash2": 127.0,
    "hat_pedal": 127.0
   }
  },
@@ -651,70 +664,63 @@
   "ghost_ratio": 0.048,
   "slot_probs": {
    "0": {
-    "snare": 0.1111,
-    "hat_open": 0.3333,
-    "tom": 0.3333,
-    "other": 0.2222
+    "kick": 0.1111,
+    "other": 0.6667,
+    "snare": 0.2222
    },
    "2": {
-    "snare": 1.0
+    "kick": 1.0
    },
    "3": {
-    "sticks": 0.3333,
-    "snare": 0.6667
+    "hat_closed": 0.3333,
+    "kick": 0.6667
    },
    "4": {
-    "tom": 0.8,
-    "kick": 0.2
+    "other": 0.8,
+    "hat_open": 0.2
    },
    "5": {
     "hat_pedal": 0.5,
-    "snare": 0.5
+    "kick": 0.5
    },
    "6": {
-    "snare": 0.6667,
-    "other": 0.3333
+    "kick": 0.6667,
+    "snare": 0.3333
    },
    "7": {
-    "tom": 0.5,
-    "hat_open": 0.5
+    "other": 1.0
    },
    "8": {
-    "snare": 0.125,
-    "tom": 0.4375,
-    "hat_open": 0.4375
+    "kick": 0.125,
+    "other": 0.875
    },
    "9": {
-    "snare": 1.0
+    "kick": 1.0
    },
    "10": {
-    "kick": 0.5,
-    "other": 0.25,
-    "snare": 0.25
+    "hat_open": 0.5,
+    "snare": 0.25,
+    "kick": 0.25
    },
    "11": {
-    "tom": 0.5,
-    "other": 0.5
+    "other": 0.5,
+    "kick": 0.5
    },
    "12": {
-    "tom": 0.375,
-    "kick": 0.25,
-    "other": 0.125,
-    "snare": 0.25
+    "other": 0.375,
+    "hat_open": 0.25,
+    "snare": 0.125,
+    "kick": 0.25
    },
    "13": {
-    "snare": 0.5,
-    "other": 0.5
+    "kick": 1.0
    },
    "14": {
-    "snare": 0.8333,
-    "other": 0.1667
+    "kick": 1.0
    },
    "15": {
-    "tom": 0.3333,
-    "hat_open": 0.3333,
-    "snare": 0.1667,
-    "other": 0.1667
+    "other": 0.6667,
+    "kick": 0.3333
    }
   },
   "slot_act": {
@@ -735,21 +741,19 @@
    "9": 1.0
   },
   "overall": {
-   "snare": 0.2892,
-   "hat_open": 0.1928,
-   "tom": 0.2892,
-   "other": 0.1446,
-   "kick": 0.0602,
-   "sticks": 0.012,
+   "kick": 0.3494,
+   "other": 0.4819,
+   "snare": 0.0843,
+   "hat_open": 0.0602,
+   "hat_closed": 0.012,
    "hat_pedal": 0.012
   },
   "accents": {
-   "snare": 104.4,
-   "hat_open": 123.8,
-   "tom": 117.0,
-   "other": 110.2,
-   "kick": 115.6,
-   "sticks": 75.0,
+   "kick": 106.7,
+   "other": 119.7,
+   "snare": 105.0,
+   "hat_open": 115.6,
+   "hat_closed": 75.0,
    "hat_pedal": 127.0
   }
  },
@@ -759,78 +763,76 @@
   "ghost_ratio": 0.013,
   "slot_probs": {
    "0": {
-    "kick": 0.8,
+    "hat_open": 0.8,
     "hat_pedal": 0.2
    },
    "1": {
     "hat_pedal": 0.6,
-    "snare": 0.4
+    "kick": 0.4
    },
    "2": {
-    "snare": 0.5,
+    "kick": 0.5,
     "hat_pedal": 0.25,
-    "kick": 0.25
+    "hat_open": 0.25
    },
    "3": {
     "hat_pedal": 0.5,
-    "kick": 0.25,
-    "snare": 0.25
+    "hat_open": 0.25,
+    "kick": 0.25
    },
    "4": {
-    "kick": 0.75,
-    "snare": 0.25
+    "hat_open": 0.75,
+    "kick": 0.25
    },
    "5": {
-    "snare": 0.6667,
+    "kick": 0.6667,
     "hat_pedal": 0.3333
    },
    "6": {
-    "other": 0.2727,
-    "tom": 0.2727,
-    "hat_open": 0.2727,
-    "snare": 0.1818
+    "snare": 0.2727,
+    "other": 0.5455,
+    "kick": 0.1818
    },
    "7": {
-    "snare": 0.6667,
-    "other": 0.3333
+    "kick": 1.0
    },
    "8": {
-    "kick": 0.6,
-    "other": 0.4
+    "hat_open": 0.6,
+    "snare": 0.4
    },
    "9": {
     "hat_pedal": 0.4,
-    "sticks": 0.2,
-    "snare": 0.4
+    "hat_closed": 0.2,
+    "kick": 0.4
    },
    "10": {
-    "snare": 0.25,
-    "kick": 0.5,
-    "other": 0.25
+    "kick": 0.25,
+    "hat_open": 0.5,
+    "snare": 0.25
    },
    "11": {
+    "hat_open": 0.25,
     "kick": 0.25,
-    "snare": 0.25,
     "hat_pedal": 0.25,
-    "other": 0.25
+    "snare": 0.25
    },
    "12": {
     "hat_pedal": 0.2,
-    "crash2": 0.2,
-    "other": 0.4,
-    "snare": 0.2
+    "other": 0.2,
+    "snare": 0.4,
+    "kick": 0.2
    },
    "13": {
-    "snare": 0.2,
+    "kick": 0.2,
     "hat_pedal": 0.4,
-    "sticks": 0.4
+    "hat_closed": 0.4
    },
    "14": {
-    "kick": 1.0
+    "hat_open": 1.0
    },
    "15": {
     "hat_pedal": 0.75,
-    "kick": 0.25
+    "hat_open": 0.25
    }
   },
   "slot_act": {
@@ -852,24 +854,20 @@
    "15": 1.0
   },
   "overall": {
-   "kick": 0.2667,
+   "hat_open": 0.2667,
    "hat_pedal": 0.2267,
-   "snare": 0.24,
-   "other": 0.1333,
-   "tom": 0.04,
-   "hat_open": 0.04,
-   "sticks": 0.04,
-   "crash2": 0.0133
+   "kick": 0.2533,
+   "snare": 0.12,
+   "other": 0.0933,
+   "hat_closed": 0.04
   },
   "accents": {
-   "kick": 121.7,
+   "hat_open": 121.7,
    "hat_pedal": 124.7,
-   "snare": 103.1,
-   "other": 114.9,
-   "tom": 127.0,
-   "hat_open": 127.0,
-   "sticks": 122.0,
-   "crash2": 122.0
+   "kick": 103.8,
+   "snare": 114.7,
+   "other": 126.3,
+   "hat_closed": 122.0
   }
  },
  "Song 08 (135 BPM)": {
@@ -878,95 +876,121 @@
   "ghost_ratio": 0.063,
   "slot_probs": {
    "0": {
-    "snare": 0.7,
+    "kick": 0.4,
     "splash": 0.05,
-    "tom": 0.2,
-    "hat_closed": 0.05
+    "crash1": 0.05,
+    "crash2": 0.2,
+    "ride": 0.05,
+    "other": 0.25
    },
    "1": {
-    "snare": 0.6154,
-    "other": 0.0769,
-    "hat_closed": 0.0769,
-    "tom": 0.2308
+    "crash1": 0.0769,
+    "snare": 0.0769,
+    "kick": 0.2308,
+    "other": 0.3077,
+    "ride": 0.0769,
+    "crash2": 0.2308
    },
    "2": {
-    "snare": 0.7273,
-    "tom": 0.1818,
-    "other": 0.0909
+    "crash1": 0.0909,
+    "crash2": 0.1818,
+    "kick": 0.2727,
+    "other": 0.3636,
+    "snare": 0.0909
    },
    "3": {
-    "snare": 0.4615,
-    "tom": 0.3077,
-    "hat_closed": 0.1538,
-    "sticks": 0.0769
-   },
-   "4": {
-    "snare": 0.5,
-    "tom": 0.4286,
-    "kick": 0.0714
-   },
-   "5": {
-    "snare": 0.6154,
-    "tom": 0.2308,
+    "crash1": 0.0769,
+    "crash2": 0.3077,
+    "kick": 0.3077,
+    "ride": 0.1538,
     "other": 0.0769,
     "hat_closed": 0.0769
    },
+   "4": {
+    "crash1": 0.0714,
+    "crash2": 0.4286,
+    "kick": 0.2143,
+    "other": 0.2143,
+    "hat_open": 0.0714
+   },
+   "5": {
+    "crash1": 0.2308,
+    "crash2": 0.1538,
+    "other": 0.1538,
+    "snare": 0.0769,
+    "ride": 0.2308,
+    "china": 0.0769,
+    "kick": 0.0769
+   },
    "6": {
-    "snare": 0.8333,
-    "tom": 0.0833,
-    "other": 0.0833
+    "crash1": 0.1667,
+    "kick": 0.4167,
+    "crash2": 0.0833,
+    "snare": 0.0833,
+    "other": 0.25
    },
    "7": {
-    "tom": 0.1667,
-    "other": 0.3889,
-    "snare": 0.2778,
-    "hat_closed": 0.1667
+    "crash2": 0.1111,
+    "snare": 0.3889,
+    "other": 0.0556,
+    "kick": 0.2778,
+    "ride": 0.1667
    },
    "8": {
-    "tom": 0.2222,
-    "other": 0.5556,
-    "hat_open": 0.1111,
-    "snare": 0.1111
+    "crash2": 0.3333,
+    "snare": 0.5556,
+    "kick": 0.1111
    },
    "9": {
-    "snare": 1.0
+    "crash1": 0.1667,
+    "other": 0.3333,
+    "kick": 0.3333,
+    "ride": 0.1667
    },
    "10": {
-    "snare": 0.6111,
-    "other": 0.1667,
-    "tom": 0.1667,
-    "hat_closed": 0.0556
+    "crash1": 0.1111,
+    "snare": 0.1667,
+    "crash2": 0.1667,
+    "other": 0.2778,
+    "kick": 0.2222,
+    "ride": 0.0556
    },
    "11": {
-    "tom": 0.4,
-    "other": 0.4,
-    "snare": 0.2
+    "crash2": 0.4,
+    "snare": 0.4,
+    "kick": 0.1,
+    "other": 0.1
    },
    "12": {
-    "tom": 0.4167,
-    "snare": 0.4167,
-    "sticks": 0.0833,
+    "crash2": 0.4167,
+    "kick": 0.1667,
+    "crash1": 0.1667,
+    "hat_closed": 0.0833,
+    "snare": 0.0833,
     "other": 0.0833
    },
    "13": {
+    "snare": 0.3,
     "other": 0.3,
-    "snare": 0.4,
-    "sticks": 0.2,
-    "kick": 0.1
+    "kick": 0.1,
+    "hat_closed": 0.2,
+    "hat_open": 0.1
    },
    "14": {
-    "snare": 0.4118,
-    "tom": 0.2353,
-    "other": 0.1765,
-    "sticks": 0.0588,
-    "kick": 0.0588,
+    "kick": 0.1765,
+    "crash2": 0.1765,
+    "snare": 0.1765,
+    "other": 0.2941,
+    "hat_closed": 0.0588,
+    "hat_open": 0.0588,
     "hat_pedal": 0.0588
    },
    "15": {
-    "tom": 0.2727,
-    "other": 0.0909,
-    "snare": 0.4545,
-    "hat_closed": 0.1818
+    "crash2": 0.2727,
+    "snare": 0.0909,
+    "kick": 0.3636,
+    "crash1": 0.0909,
+    "ride": 0.1818
    }
   },
   "slot_act": {
@@ -988,25 +1012,29 @@
    "13": 1.0
   },
   "overall": {
-   "snare": 0.5169,
+   "kick": 0.2415,
    "splash": 0.0048,
-   "tom": 0.2271,
-   "other": 0.1498,
-   "hat_open": 0.0048,
-   "hat_closed": 0.0531,
-   "sticks": 0.0242,
-   "kick": 0.0145,
+   "crash1": 0.0773,
+   "crash2": 0.2174,
+   "snare": 0.1498,
+   "other": 0.1932,
+   "ride": 0.0676,
+   "hat_closed": 0.0242,
+   "hat_open": 0.0145,
+   "china": 0.0048,
    "hat_pedal": 0.0048
   },
   "accents": {
-   "snare": 103.6,
+   "kick": 97.5,
    "splash": 105.0,
-   "tom": 108.3,
-   "other": 103.4,
-   "hat_open": 107.0,
-   "hat_closed": 96.6,
-   "sticks": 121.2,
-   "kick": 120.7,
+   "crash1": 82.4,
+   "crash2": 108.9,
+   "snare": 103.4,
+   "other": 117.8,
+   "ride": 103.1,
+   "hat_closed": 121.2,
+   "hat_open": 120.7,
+   "china": 98.0,
    "hat_pedal": 127.0
   }
  }
