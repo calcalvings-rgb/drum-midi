@@ -102,10 +102,11 @@ def suppress_cymbal_sustain(events, tail_window_s=0.15, vel_ratio=0.5):
 
 
 def groove_cleanup(events, tempo_bpm=None, flatten_cymbal=False,
-                   merge_window=None, tail_window_s=0.15):
+                   merge_window=None, tail_window_s=0.15, min_confidence=0.0):
     """Post-process raw transcribed events into clean MIDI events.
 
     - optional: flatten cymbals to 'cymbal' (when classifier is confused)
+    - drop events below `min_confidence` (0=off; tune ~0.35 in practice)
     - collapse same-instrument duplicates within adaptive window
     - drop cymbal sustain tails (low-velocity family events trailing a hit)
     - cluster simultaneous events; merge cymbal clusters (if flatten on)
@@ -117,6 +118,8 @@ def groove_cleanup(events, tempo_bpm=None, flatten_cymbal=False,
         ev = e if isinstance(e, DrumEvent) else DrumEvent(e["time"], e["type"],
                                                           e.get("velocity", 100),
                                                           e.get("confidence", 1.0))
+        if ev.confidence < min_confidence:
+            continue
         ev.instrument = normalize_instrument(ev.instrument, flatten_cymbal)
         evs.append(ev)
     evs = collapse_duplicates(evs, merge_window)

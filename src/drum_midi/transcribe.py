@@ -105,7 +105,7 @@ def transcribe_bands(x: np.ndarray | None, sr: int) -> list[dict]:
     Returns
     -------
     list[dict]
-        List of detected drum events: {'type': str, 'onset_s': float, 'velocity': float},
+        List of detected drum events: {'type': str, 'onset_s': float, 'velocity': float, 'confidence': float},
         sorted by onset time ascending.
     """
     if x is None:
@@ -182,28 +182,34 @@ def transcribe_bands(x: np.ndarray | None, sr: int) -> list[dict]:
 
         # 1. Hat alone (high frequency with negligible low/mid body)
         if h > 0.08 and s < 0.1 and k < 0.1:
-            notes.append({"type": "hat_closed", "onset_s": onset, "velocity": vel})
+            notes.append({"type": "hat_closed", "onset_s": onset, "velocity": vel,
+                          "confidence": float(np.clip(flux_total[p] / max_total, 0, 1))})
             continue
 
         # 2. Tom alone (mid frequency dominance, low high-frequency noise)
         tom_cands = [("floor", fl), ("rack2", r2), ("rack1", r1)]
         best_tom, best_tom_val = max(tom_cands, key=lambda item: item[1])
         if best_tom_val > 0.08 and best_tom_val > 1.3 * s and best_tom_val > 1.3 * k:
-            notes.append({"type": best_tom, "onset_s": onset, "velocity": vel})
+            notes.append({"type": best_tom, "onset_s": onset, "velocity": vel,
+                          "confidence": float(np.clip(best_tom_val, 0, 1))})
             continue
 
         # 3. Kick (low frequency dominance)
         if k > 0.2 and k > 1.5 * s:
-            notes.append({"type": "kick", "onset_s": onset, "velocity": vel})
+            notes.append({"type": "kick", "onset_s": onset, "velocity": vel,
+                          "confidence": float(np.clip(k, 0, 1))})
             if h > 0.08:
-                notes.append({"type": "hat_closed", "onset_s": onset, "velocity": vel})
+                notes.append({"type": "hat_closed", "onset_s": onset, "velocity": vel,
+                              "confidence": float(np.clip(h, 0, 1))})
             continue
 
         # 4. Snare (body in 150-500Hz)
         if s > 0.08:
-            notes.append({"type": "snare", "onset_s": onset, "velocity": vel})
+            notes.append({"type": "snare", "onset_s": onset, "velocity": vel,
+                          "confidence": float(np.clip(s, 0, 1))})
             if h > 0.15 and h > 1.5 * s:
-                notes.append({"type": "hat_closed", "onset_s": onset, "velocity": vel})
+                notes.append({"type": "hat_closed", "onset_s": onset, "velocity": vel,
+                              "confidence": float(np.clip(h, 0, 1))})
             continue
 
         # Fallback to dominant band
@@ -215,9 +221,10 @@ def transcribe_bands(x: np.ndarray | None, sr: int) -> list[dict]:
             ("rack2", r2),
             ("rack1", r1),
         ]
-        best_type, _ = max(band_scores, key=lambda item: item[1])
+        best_type, best_score = max(band_scores, key=lambda item: item[1])
         if best_type in DRUM_TYPES:
-            notes.append({"type": best_type, "onset_s": onset, "velocity": vel})
+            notes.append({"type": best_type, "onset_s": onset, "velocity": vel,
+                          "confidence": float(np.clip(best_score, 0, 1))})
 
     notes.sort(key=lambda n: (n["onset_s"], n["type"]))
     return notes
@@ -324,7 +331,8 @@ def transcribe_dettato(x: np.ndarray | None, sr: int, thresholds: dict | None = 
     for h in hits:
         typ = DETTATO_PITCH_TO_TYPE.get(h["pitch"])
         if typ:
-            notes.append({"type": typ, "onset_s": float(h["onset"]), "velocity": float(h["velocity"])})
+            notes.append({"type": typ, "onset_s": float(h["onset"]), "velocity": float(h["velocity"]),
+                          "confidence": float(np.clip(h.get("confidence", h["velocity"]), 0, 1))})
     notes.sort(key=lambda n: (n["onset_s"], n["type"]))
 
     # Optional per-type velocity floor: drops low-confidence over-detected hits
@@ -485,7 +493,8 @@ def transcribe_strum(x: np.ndarray | None, sr: int, mc_rescue_thr: float = 0.4) 
         seg_audio = audio[idx_start:idx_end]
         vel = round(float(np.clip(np.max(np.abs(seg_audio)) if len(seg_audio) > 0 else 0.5, 0.01, 1.0)), 4)
         for c in sorted(cs):
-            notes.append({"type": STRUM_LANE_TO_TYPE[c], "onset_s": round(onset, 4), "velocity": vel})
+            notes.append({"type": STRUM_LANE_TO_TYPE[c], "onset_s": round(onset, 4), "velocity": vel,
+                          "confidence": float(mc[f, c])})
     notes.sort(key=lambda n: (n["onset_s"], n["type"]))
     return notes
 
@@ -536,7 +545,7 @@ def _parse_adtof_midi(path, pitch_to_type) -> list[dict]:
                 onset = t / div
                 typ = pitch_to_type.get(d1)
                 if typ:
-                    notes.append({"type": typ, "onset_s": onset, "velocity": float(d2)})
+                    notes.append({"type": typ, "onset_s": onset, "velocity": float(d2), "confidence": d2 / 127.0})
     notes.sort(key=lambda n: (n["onset_s"], n["type"]))
     return notes
 
@@ -598,5 +607,5 @@ def transcribe(
     evs = [DrumEvent(n["onset_s"], n["type"], n.get("velocity", 100),
                      n.get("confidence", 1.0)) for n in notes]
     cleaned = groove_cleanup(evs, tempo_bpm=tempo, flatten_cymbal=flatten_cymbal)
-    return [{"type": e.instrument, "onset_s": e.time, "velocity": e.velocity}
+    return [{"type": e.instrument, "onset_s": e.time, "velocity": e.velocity, "confidence": e.confidence}
             for e in cleaned]
