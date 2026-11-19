@@ -20,6 +20,9 @@ realtest/
 experiments/*.mid
 experiments/*.wav
 
+# Internal planning (superpowers) — not for public eyes
+docs/superpowers/
+
 # pytest caches (workspace-specific)
 .pytest_cache/
 
