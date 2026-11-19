@@ -100,3 +100,37 @@ def test_cleanup_accepts_dict_input():
     out = groove_cleanup(evs, tempo_bpm=120)
     assert len(out) == 1
     assert isinstance(out[0], DrumEvent)
+
+
+# --- suppress_cymbal_sustain (PR-002) ---
+def test_sustain_drops_low_velocity_tail():
+    evs = [E(10.00, "crash", vel=95), E(10.08, "crash", vel=30),
+           E(10.14, "ride", vel=20)]
+    out = groove_cleanup(evs)
+    assert len(out) == 1
+    assert out[0].time == 10.00
+
+
+def test_sustain_keeps_comparable_velocity():
+    # loud pair within window, second still 80% of peak -> real hits
+    evs = [E(10.00, "crash", vel=90), E(10.06, "crash", vel=80)]
+    out = groove_cleanup(evs)
+    assert len(out) == 2
+
+
+def test_sustain_ignores_non_cymbal():
+    evs = [E(10.0, "kick", vel=95), E(10.08, "kick", vel=30)]
+    assert len(groove_cleanup(evs)) == 2
+
+
+def test_sustain_keeps_hh_groove():
+    # 16th hi-hat pattern at 140bpm (~107ms), comparable velocities
+    evs = [E(10.000, "hh", vel=70), E(10.107, "hh", vel=68),
+           E(10.214, "hh", vel=72)]
+    out = groove_cleanup(evs)
+    assert len(out) == 3
+
+
+def test_sustain_off_disables_suppression():
+    evs = [E(10.0, "crash", vel=95), E(10.06, "ride", vel=30)]
+    assert len(groove_cleanup(evs, tail_window_s=0)) == 2

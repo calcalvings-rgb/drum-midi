@@ -81,11 +81,33 @@ def merge_cymbal_cluster(cluster):
     return rest + [best]
 
 
-def groove_cleanup(events, tempo_bpm=None, flatten_cymbal=False, merge_window=None):
+def suppress_cymbal_sustain(events, tail_window_s=0.15, vel_ratio=0.5):
+    """Drop low-velocity cymbal-family events that trail a louder cymbal hit.
+
+    Models crash sustain: a strong hit followed within ~150ms by a much
+    weaker cymbal event (same family) is the tail, not a new hit. Events
+    whose velocity is >= `vel_ratio` of the recent family peak are kept, so
+    rapid 16th hi-hat grooves (comparable velocities) survive.
+    """
+    events = sorted(events, key=lambda e: e.time)
+    out = []
+    for ev in events:
+        if ev.instrument in CYMBALS and out:
+            prevs = [p for p in out
+                     if p.instrument in CYMBALS and ev.time - p.time <= tail_window_s]
+            if prevs and ev.velocity < max(p.velocity for p in prevs) * vel_ratio:
+                continue
+        out.append(ev)
+    return out
+
+
+def groove_cleanup(events, tempo_bpm=None, flatten_cymbal=False,
+                   merge_window=None, tail_window_s=0.15):
     """Post-process raw transcribed events into clean MIDI events.
 
     - optional: flatten cymbals to 'cymbal' (when classifier is confused)
     - collapse same-instrument duplicates within adaptive window
+    - drop cymbal sustain tails (low-velocity family events trailing a hit)
     - cluster simultaneous events; merge cymbal clusters (if flatten on)
     """
     if merge_window is None:
@@ -98,6 +120,7 @@ def groove_cleanup(events, tempo_bpm=None, flatten_cymbal=False, merge_window=No
         ev.instrument = normalize_instrument(ev.instrument, flatten_cymbal)
         evs.append(ev)
     evs = collapse_duplicates(evs, merge_window)
+    evs = suppress_cymbal_sustain(evs, tail_window_s) if tail_window_s else evs
     out = []
     for cl in cluster_events(evs, merge_window * 1.4):
         if flatten_cymbal:
