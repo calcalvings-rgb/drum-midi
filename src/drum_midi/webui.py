@@ -153,7 +153,7 @@ function renderNotes(notes) {
     const badge = `<span class="badge t-${n.type}">${n.type}</span>`;
     const vb = `<span class="velbar" style="width:${Math.max(2, Math.round(n.velocity * 60))}px"></span> ${n.velocity.toFixed(2)}`;
     tr.innerHTML = `<td>${i + 1}</td><td>${badge}</td><td class="mono">${n.onset_s.toFixed(3)}</td><td>${vb}</td>`;
-    tr.children[4].replaceWith(td);
+    tr.appendChild(td);
     tb.appendChild(tr);
   });
 }
