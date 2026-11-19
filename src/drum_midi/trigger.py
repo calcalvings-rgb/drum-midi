@@ -31,6 +31,7 @@ DEFAULT_CONFIG = {
     "envelope_cutoff_hz": 80,        # envelope lowpass cutoff
     "nperseg": 512,
     "hop": 128,
+    "flux_smooth": 2,                # smoothing frames for spectral-flux onset
     # Centroid (Hz) class boundaries (fitted on GT tes2.mid).
     "kick_max_hz": 110.0,
     "tom_max_hz": 380.0,
@@ -56,8 +57,8 @@ def apply_velocity_curve(peak: float, curve: list[list[float]]) -> float:
 def _whitened_envelope(audio: np.ndarray, sr: int, cfg: dict) -> np.ndarray:
     """Band-pass, rectify, smooth, then moving-average onset filter.
 
-    The moving-average of order `onset_filter_order` is InTrigger's onset mean
-    filter; it smooths the envelope so find_peaks stops firing on baseline ripple.
+    The moving-average of order `onset_filter_order` smooths the envelope; it is
+    used for velocity/duration, not onset timing (which uses spectral flux).
     """
     nyq = sr / 2
     sos_bp = signal.butter(4, [max(1.0, nyq * 0.0005), nyq - 1],
@@ -74,11 +75,18 @@ def _whitened_envelope(audio: np.ndarray, sr: int, cfg: dict) -> np.ndarray:
 
 
 def _stft(audio: np.ndarray, sr: int, cfg: dict):
-    """Pre-computed STFT power spectrum used for class features."""
+    """STFT magnitude/power plus half-wave-rectified spectral flux.
+
+    Returns (freqs, t, P, flux) where P = |Zxx|^2 (power) and flux is the
+    per-frame half-wave-rectified spectral change used for onset detection.
+    """
     nperseg = int(cfg["nperseg"])
     hop = int(cfg["hop"])
-    f, _, Zxx = signal.stft(audio, sr, nperseg=nperseg, noverlap=nperseg - hop)
-    return f, np.abs(Zxx) ** 2, hop
+    f, t, Zxx = signal.stft(audio, sr, nperseg=nperseg, noverlap=nperseg - hop)
+    mag = np.abs(Zxx)
+    P = mag ** 2
+    flux = np.maximum(mag[:, 1:] - mag[:, :-1], 0).sum(axis=0)
+    return f, t, P, flux
 
 
 def classify_event(centroid_hz: float, duration: float, config: dict) -> str:
@@ -118,33 +126,46 @@ def trigger_transcribe(x, sr, config=None) -> list[dict]:
 
     cfg = DEFAULT_CONFIG | (config or {})
     env = _whitened_envelope(audio, sr, cfg)
-    floor = np.percentile(env, 90)
-    threshold = max(cfg["threshold_k"] * floor, 0.05 * env.max())
-    distance = max(1, round(cfg["min_distance_s"] * sr))
-    peaks, _ = signal.find_peaks(env, height=threshold, distance=distance)
+    f, t, Pw, flux = _stft(audio, sr, cfg)
 
-    f, Pw, hop = _stft(audio, sr, cfg)
+    # Onset detection on spectral flux (tight timing), smoothed to avoid
+    # fighting baseline ripple.
+    smooth = int(cfg.get("flux_smooth", 2))
+    if smooth > 1:
+        flux = np.convolve(flux, np.ones(smooth) / smooth, mode="same")
+    thr = max(cfg["threshold_k"] * np.percentile(flux, 90), 0.03 * flux.max())
+    frame_dist = max(1, round(cfg["min_distance_s"] * sr / int(cfg["hop"])))
+    peaks, _ = signal.find_peaks(flux, height=thr, distance=frame_dist)
+    # flux index i corresponds to time t[i+1]
     fl = f.reshape(-1, 1)
-
+    hop = int(cfg["hop"])
     events = []
-    for peak in peaks:
-        value = env[peak]
+    for frame in peaks:
+        onset = t[frame + 1]
+        # Anchor the spectral classifier on the envelope peak (steady state)
+        # that follows the transient onset — the attack is broadband and muddies
+        # the centroid.
+        idx = int(round(onset * sr))
+        win = env[idx:idx + int(0.03 * sr)]
+        if len(win) == 0:
+            continue
+        pidx = idx + int(np.argmax(win))
+        value = env[pidx]
+
         half = value * 0.5
-        end = peak + 1
+        end = pidx + 1
         while end < len(env) and env[end] >= half:
             end += 1
-        duration = (end - peak) / sr
+        duration = (end - pidx) / sr
 
-        start = peak + int(0.01 * sr)
-        stop = peak + int(0.05 * sr)
-        lo_f = max(0, int(start // hop))
-        hi_f = min(Pw.shape[1] - 1, int(stop // hop))
+        lo_f = max(0, int(pidx // hop) - max(1, round(0.01 * sr / hop)))
+        hi_f = min(Pw.shape[1] - 1, int(pidx // hop) + round(0.05 * sr / hop))
         seg = Pw[:, lo_f:hi_f + 1].sum(axis=1)
         total = seg.sum()
         centroid = float((fl[:, 0] * seg).sum() / total) if total > 0 else 0.0
 
         kind = classify_event(centroid, duration, cfg)
         velocity = apply_velocity_curve(value / (env.max() or 1), cfg["velocity_curve"])
-        events.append({"type": kind, "onset_s": peak / sr, "velocity": velocity})
+        events.append({"type": kind, "onset_s": onset, "velocity": velocity})
 
     return sorted(events, key=lambda n: (n["onset_s"], n["type"]))
