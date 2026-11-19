@@ -68,6 +68,7 @@ PAGE = """<!doctype html>
   .legend{margin-top:10px;font-size:12px;line-height:2}
   .legend .badge{margin-right:10px}
   #filter{width:180px;display:inline-block;margin-left:8px}
+  #roll{display:block;width:100%;height:auto}
 </style></head><body>
 <h1>Drum → MIDI</h1>
 <p class="sub">Trigger backend · remote control</p>
@@ -143,7 +144,7 @@ async function init() {
 let lastNotes = [];
 let selIndex = -1;
 const TYPE_COLOR = { kick:"#ff8a8a", snare:"#6db3ff", floor:"#e8b35a", rack1:"#e8b35a", rack2:"#e8b35a", crash1:"#c9a0ff", crash2:"#c9a0ff", hat_closed:"#b8c0cc", hat_open:"#b8c0cc", ride:"#b8c0cc", ride_bell:"#b8c0cc" };
-const LANE_H = 40, LBL_W = 96, AX_H = 22;
+const LANE_H = 54, LBL_W = 112, AX_H = 28;
 
 function laneTypes(notes) {
   const seen = [];
@@ -163,31 +164,31 @@ function drawRoll() {
   document.getElementById("summary").textContent = `${shown.length} / ${notes.length} note events`;
   document.getElementById("export").disabled = false;
   const cvs = document.getElementById("roll");
-  const W = Math.max(300, document.getElementById("rollwrap").clientWidth - 4);
+  const W = Math.max(300, document.getElementById("rollwrap").clientWidth);
   const lanes = laneTypes(notes);
   cvs.width = W; cvs.height = lanes.length * LANE_H + AX_H;
   const ctx = cvs.getContext("2d");
   const m = viewMetrics(shown);
   // grid ticks
-  ctx.font = "11px ui-monospace,Consolas,monospace";
+  ctx.font = "12px ui-monospace,Consolas,monospace";
   const step = [0.25, 0.5, 1, 2, 5].find(s => (m.tMax / s) <= 24) || 10;
   for (let tt = Math.ceil(m.tMin / step) * step; tt <= m.tMax + 1e-9; tt += step) {
     const x = LBL_W + (tt - m.tMin) * m.pxPerSec; if (x > W) break;
     ctx.strokeStyle = "#20252f"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cvs.height - AX_H); ctx.stroke();
-    ctx.fillStyle = "#77808f"; ctx.fillText(tt.toFixed(step < 1 ? 2 : 0), x + 3, cvs.height - 6);
+    ctx.fillStyle = "#77808f"; ctx.fillText(tt.toFixed(step < 1 ? 2 : 0), x + 3, cvs.height - 8);
   }
   lanes.forEach((t, i) => {
     const y = i * LANE_H;
     ctx.fillStyle = i % 2 ? "#151820" : "#12151d"; ctx.fillRect(LBL_W, y, W - LBL_W, LANE_H);
-    ctx.fillStyle = "#b9c1cf"; ctx.fillText(t, 8, y + LANE_H * 0.62);
+    ctx.fillStyle = "#c3cbd8"; ctx.font = "13px system-ui,sans-serif"; ctx.fillText(t, 10, y + LANE_H * 0.58);
     ctx.strokeStyle = "#222736"; ctx.strokeRect(LBL_W, y, W - LBL_W, LANE_H);
     shown.forEach(n => {
       if (n.type !== t) return;
       const x = LBL_W + (n.onset_s - m.tMin) * m.pxPerSec;
-      const bw = Math.max(5, Math.min(14, 6 + n.velocity * 10));
+      const bw = Math.max(6, Math.min(18, 7 + n.velocity * 12));
       ctx.fillStyle = TYPE_COLOR[n.type] || "#888"; ctx.globalAlpha = 0.4 + 0.6 * n.velocity;
-      ctx.fillRect(x, y + 7, bw, LANE_H - 14); ctx.globalAlpha = 1;
-      if (notes.indexOf(n) === selIndex) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(x - 2, y + 4, bw + 4, LANE_H - 8); ctx.lineWidth = 1; }
+      ctx.fillRect(x, y + 9, bw, LANE_H - 18); ctx.globalAlpha = 1;
+      if (notes.indexOf(n) === selIndex) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.strokeRect(x - 3, y + 6, bw + 6, LANE_H - 12); ctx.lineWidth = 1; }
     });
   });
 }
