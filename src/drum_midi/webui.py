@@ -54,9 +54,20 @@ PAGE = """<!doctype html>
   th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #232834}
   th{color:#9aa2ae;font-weight:600}
   .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#232a3a;color:#aeb8c9}
-  .rowbtn{margin:0 2px;padding:2px 6px;font-size:12px;background:#2a3040;border-radius:4px;padding-top:4px;padding-bottom:4px}
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:#232a3a;color:#aeb8c9}
+  .t-kick{background:#5a1f24;color:#ffb3b3}
+  .t-snare{background:#1f3a5a;color:#a9d4ff}
+  .t-floor,.t-rack1,.t-rack2{background:#4a3a1a;color:#ffe3a3}
+  .t-crash1,.t-crash2{background:#3a2b4a;color:#d9b9ff}
+  .t-hat_closed,.t-hat_open,.t-ride,.t-ride_bell{background:#2a2f3a;color:#cdd4de}
+  .rowbtn{margin:0 2px;padding:3px 7px;font-size:12px;background:#2a3040;border-radius:4px}
   .rowbtn.del{background:#4a2228}
   td select{width:auto;padding:2px 4px;font-size:12px;margin-right:4px}
+  .velbar{display:inline-block;height:8px;border-radius:4px;background:#4f7cff;vertical-align:middle}
+  .mono{font-family:ui-monospace,Consolas,monospace}
+  .legend{margin-top:10px;font-size:12px;line-height:2}
+  .legend .badge{margin-right:10px}
+  #filter{width:180px;display:inline-block;margin-left:8px}
 </style></head><body>
 <h1>Drum → MIDI</h1>
 <p class="sub">Trigger backend · remote control</p>
@@ -83,7 +94,11 @@ PAGE = """<!doctype html>
 </div>
 
 <div class="card" id="results" style="display:none">
-  <div id="summary"></div>
+  <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+    <div id="summary" style="font-weight:600"></div>
+    <select id="filter"><option value="">all types</option></select>
+  </div>
+  <div id="legend" class="legend"></div>
   <table id="notes"><thead><tr><th>#</th><th>type</th><th>onset (s)</th><th>velocity</th><th></th></tr></thead>
   <tbody></tbody></table>
 </div>
@@ -104,6 +119,11 @@ async function init() {
   TYPES.push(...meta.types);
   const sel = document.getElementById("kit");
   meta.kits.forEach(k => { const o = document.createElement("option"); o.value = k; o.textContent = k; sel.appendChild(o); });
+  const fc = document.getElementById("filter");
+  TYPES.forEach(t => { const o = document.createElement("option"); o.value = t; o.textContent = t; fc.appendChild(o); });
+  fc.onchange = () => renderNotes(lastNotes);
+  const lg = document.getElementById("legend");
+  TYPES.forEach(t => { const b = document.createElement("span"); b.className = "badge t-" + t; b.textContent = t; lg.appendChild(b); });
   const files = await api("/api/files", { method: "GET" });
   const fs = document.getElementById("file");
   files.files.forEach(f => { const o = document.createElement("option"); o.value = f; o.textContent = f; fs.appendChild(o); });
@@ -112,24 +132,28 @@ async function init() {
 let lastNotes = [];
 function renderNotes(notes) {
   lastNotes = notes;
-  document.getElementById("summary").textContent = `${notes.length} note events`;
+  const filt = document.getElementById("filter").value;
+  const shown = filt ? notes.filter(n => n.type === filt) : notes;
+  document.getElementById("summary").textContent = `${shown.length} / ${notes.length} note events`;
   document.getElementById("export").disabled = false;
   const tb = document.querySelector("#notes tbody"); tb.innerHTML = "";
-  notes.slice(0, 200).forEach((n, i) => {
+  shown.slice(0, 200).forEach((n, i) => {
     const tr = document.createElement("tr");
     const sel = document.createElement("select");
     TYPES.forEach(t => { const o = document.createElement("option"); o.value = t; o.textContent = t; if (t === n.type) o.selected = true; sel.appendChild(o); });
-    sel.onchange = () => edit({ action: "reassign", index: i, type: sel.value });
+    sel.onchange = () => edit({ action: "reassign", index: notes.indexOf(n), type: sel.value });
     const nb = document.createElement("button"); nb.textContent = "−10"; nb.className = "rowbtn";
-    nb.onclick = () => edit({ action: "move", index: i, delta_s: -0.01 });
+    nb.onclick = () => edit({ action: "move", index: notes.indexOf(n), delta_s: -0.01 });
     const pb = document.createElement("button"); pb.textContent = "+10"; pb.className = "rowbtn";
-    pb.onclick = () => edit({ action: "move", index: i, delta_s: 0.01 });
+    pb.onclick = () => edit({ action: "move", index: notes.indexOf(n), delta_s: 0.01 });
     const db = document.createElement("button"); db.textContent = "del"; db.className = "rowbtn del";
-    db.onclick = () => edit({ action: "delete", index: i });
+    db.onclick = () => edit({ action: "delete", index: notes.indexOf(n) });
     const td = document.createElement("td");
     td.appendChild(sel); td.appendChild(nb); td.appendChild(pb); td.appendChild(db);
-    tr.innerHTML = `<td>${i + 1}</td><td></td><td>${n.onset_s.toFixed(3)}</td><td>${n.velocity.toFixed(3)}</td>`;
-    tr.children[1].replaceWith(td);
+    const badge = `<span class="badge t-${n.type}">${n.type}</span>`;
+    const vb = `<span class="velbar" style="width:${Math.max(2, Math.round(n.velocity * 60))}px"></span> ${n.velocity.toFixed(2)}`;
+    tr.innerHTML = `<td>${i + 1}</td><td>${badge}</td><td class="mono">${n.onset_s.toFixed(3)}</td><td>${vb}</td>`;
+    tr.children[4].replaceWith(td);
     tb.appendChild(tr);
   });
 }
