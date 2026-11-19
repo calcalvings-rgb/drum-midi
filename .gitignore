@@ -10,6 +10,10 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Proprietary licensed groove-pack data (SP token / GetGood Drums)
+# Keep local-only; never push — reverse-engineered mapping + stats.
+data/*.json
+
 # pytest caches (workspace-specific)
 .pytest_cache/
 
