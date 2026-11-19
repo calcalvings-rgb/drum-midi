@@ -1,0 +1,30 @@
+You are implementing Task 3 of a drum-trigger backend in repo C:/Users/ccalv/workspace/coding/drum-midi. Python 3.14, venv .venv (numpy, scipy). Do NOT git commit, do NOT install, only touch src/drum_midi/trigger.py and tests/test_trigger.py.
+
+Existing src/drum_midi/trigger.py has BANDS, DEFAULT_CONFIG, apply_velocity_curve, and trigger_transcribe(x, sr, config=None) -> list[dict]. Bands: kick/snare/floor/rack2/rack1 (20-150,150-500,500-1200,1200-2500,2500-5000 Hz) plus hat_closed (5000..nyquist-50) appended inside trigger_transcribe when nyquist > hat_min_hz. Each detected hit becomes {'type': band_name, 'onset_s', 'velocity'}. Decay is computed (half-height while-loop) but discarded.
+
+Your task:
+1. Add to trigger.py:
+```python
+def classify_band(band_name: str, decay_s: float, config: dict) -> str:
+```
+Default: returns band_name unchanged for kick/snare/floor/rack2/rack1. For "hat_closed": if decay_s > config.get("crash_decay_s", 0.2) return "crash1" else "hat_closed". config is a dict of overrides (may be empty).
+
+2. In trigger_transcribe, for each event: compute decay_s from the existing while-loop (half-level duration in seconds = (end - peak) / sr). Then set the event's type = classify_band(name, decay_s, cfg). Keep velocity/onset logic identical.
+
+3. Add DEFAULT_CONFIG entry "crash_decay_s": 0.2.
+
+4. Append these tests to tests/test_trigger.py:
+```python
+from drum_midi.trigger import classify_band
+from drum_midi import maps
+
+def test_crash_vs_hat_by_decay():
+    assert classify_band("hat_closed", 0.35, {}) == "crash1"
+    assert classify_band("hat_closed", 0.05, {}) == "hat_closed"
+
+def test_band_types_valid():
+    for b in ["kick","snare","floor","rack2","rack1","hat_closed"]:
+        assert classify_band(b, 0.05, {}) in maps.DRUM_TYPES
+```
+
+Run: .venv/Scripts/python.exe -m pytest tests/test_trigger.py -v --basetemp=.pytest_tmp -p no:cacheprovider — must all pass. Report test output. Do NOT git commit.

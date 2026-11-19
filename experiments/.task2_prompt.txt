@@ -1,0 +1,32 @@
+You are implementing Task 2 of a drum-trigger backend in repo C:/Users/ccalv/workspace/coding/drum-midi. Python 3.14, venv .venv (numpy, scipy). Do NOT git commit, do NOT install, only touch src/drum_midi/trigger.py and tests/test_trigger.py. Do NOT modify other files.
+
+Existing file src/drum_midi/trigger.py has BANDS, DEFAULT_CONFIG, and trigger_transcribe(x, sr, config=None) -> list[dict] producing events {'type','onset_s','velocity'} sorted by (onset_s,type). Current velocity is per-band normalized (np.interp(value,[0,envelope.max()],[0,1])) — NOT using the velocity curve. Default config already has "velocity_curve": [[0.0,0.0],[0.5,0.55],[1.0,1.0]].
+
+Your task:
+1. Add a new function to trigger.py:
+```python
+def apply_velocity_curve(peak: float, curve: list[list[float]]) -> float:
+```
+Piecewise-linear interpolation over curve (list of [x,y] breakpoints, ascending x, x in [0,1]). Clamp input to [0,1] before interpolation, clamp output to [0,1]. Use numpy.interp on the curve's x/y arrays.
+
+2. In trigger_transcribe, replace the velocity computation so each event's velocity = apply_velocity_curve(normalized_peak, cfg["velocity_curve"]). Normalized_peak is the band envelope peak scaled to [0,1] as now (peak / envelope.max()). Keep everything else identical.
+
+3. Append these tests to tests/test_trigger.py:
+```python
+import pytest
+from drum_midi.trigger import apply_velocity_curve, DEFAULT_CONFIG
+
+def test_velocity_curve_interp():
+    c = DEFAULT_CONFIG["velocity_curve"]
+    assert apply_velocity_curve(0.0, c) == 0.0
+    assert apply_velocity_curve(1.0, c) == 1.0
+    assert apply_velocity_curve(0.5, c) == pytest.approx(0.55)
+    assert 0.0 < apply_velocity_curve(0.25, c) < 0.55
+
+def test_velocity_curve_clamp():
+    c = DEFAULT_CONFIG["velocity_curve"]
+    assert apply_velocity_curve(-0.5, c) == 0.0
+    assert apply_velocity_curve(1.5, c) == 1.0
+```
+
+Run: .venv/Scripts/python.exe -m pytest tests/test_trigger.py -v --basetemp=.pytest_tmp -p no:cacheprovider — must all pass. Report test output. Do NOT git commit.

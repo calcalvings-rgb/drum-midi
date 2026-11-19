@@ -8,3 +8,14 @@
 challange/
 __pycache__/
 *.pyc
+*.pyo
+
+# pytest caches (workspace-specific)
+.pytest_cache/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Scratch / local
+*.log

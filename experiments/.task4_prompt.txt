@@ -1,0 +1,37 @@
+You are implementing Task 4 of a drum-trigger backend in repo C:/Users/ccalv/workspace/coding/drum-midi. Python 3.14, venv .venv. Do NOT git commit, do NOT install. Touch ONLY: src/drum_midi/transcribe.py, src/drum_midi/gui.py, tests/test_trigger.py.
+
+Context:
+- src/drum_midi/trigger.py has `trigger_transcribe(x, sr, config=None) -> list[dict]` returning events sorted by (onset_s,type).
+- src/drum_midi/transcribe.py has `transcribe_dispatch(x, sr, method, threshold_preset)` and `transcribe(x, sr, method, threshold_preset)`. It has THRESHOLD_PRESETS dict with keys "tuned-mixwave", "dense", "sparse". Each preset maps backend method names to configs.
+- src/drum_midi/pipeline.py calls `transcribe(audio, sr, method=mode.get("tx","bands"))` — no change needed there.
+- src/drum_midi/gui.py line ~90: `self.tx_dropdown = ttk.Combobox(..., values=["bands","madmom","adtof","dettato","strum"])`.
+
+Changes:
+
+1. In transcribe.py, add to transcribe_dispatch, BEFORE the final `raise ValueError`:
+```python
+    if method == "trigger":
+        return trigger_transcribe(x, sr, config=config)
+```
+Add import at top: `from drum_midi.trigger import trigger_transcribe` (or relative if imports are relative — match existing style; check how other backends are imported/available).
+
+2. In THRESHOLD_PRESETS, add `"trigger": None` to each of the three presets ("tuned-mixwave", "dense", "sparse").
+
+3. In gui.py, add `"trigger"` to the tx dropdown values list, so it becomes:
+```python
+values=["bands","madmom","adtof","dettato","strum","trigger"]
+```
+
+4. Append to tests/test_trigger.py:
+```python
+from drum_midi.transcribe import transcribe
+
+def test_transcribe_trigger_dispatch():
+    sr = 44100
+    audio = np.zeros(int(sr*0.5))
+    audio[0:int(sr*0.04)] = make_click(sr, 60, amp=1.0)
+    notes = transcribe(audio, sr, method="trigger")
+    assert {n["type"] for n in notes} == {"kick"}
+```
+
+Run: .venv/Scripts/python.exe -m pytest tests/test_trigger.py -v --basetemp=.pytest_tmp -p no:cacheprovider — must all pass. Report test output. Do NOT git commit.
