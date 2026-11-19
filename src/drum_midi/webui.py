@@ -28,7 +28,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from drum_midi.audio import parse_audio
-from drum_midi.maps import PRESETS
+from drum_midi.editor import delete_note, move_note, reassign_note
+from drum_midi.maps import DRUM_TYPES, PRESETS
 from drum_midi.midi_out import write_midi
 from drum_midi.transcribe import transcribe
 
@@ -53,6 +54,9 @@ PAGE = """<!doctype html>
   th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #232834}
   th{color:#9aa2ae;font-weight:600}
   .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#232a3a;color:#aeb8c9}
+  .rowbtn{margin:0 2px;padding:2px 6px;font-size:12px;background:#2a3040;border-radius:4px;padding-top:4px;padding-bottom:4px}
+  .rowbtn.del{background:#4a2228}
+  td select{width:auto;padding:2px 4px;font-size:12px;margin-right:4px}
 </style></head><body>
 <h1>Drum → MIDI</h1>
 <p class="sub">Trigger backend · remote control</p>
@@ -76,12 +80,13 @@ PAGE = """<!doctype html>
 
 <div class="card" id="results" style="display:none">
   <div id="summary"></div>
-  <table id="notes"><thead><tr><th>#</th><th>type</th><th>onset (s)</th><th>velocity</th></tr></thead>
+  <table id="notes"><thead><tr><th>#</th><th>type</th><th>onset (s)</th><th>velocity</th><th></th></tr></thead>
   <tbody></tbody></table>
 </div>
 
 <script>
 const token = new URLSearchParams(location.search).get("token") || "";
+const TYPES = [];
 async function api(path, opts) {
   const o = opts || {};
   o.headers = { "Content-Type": "application/json", "X-Auth-Token": token };
@@ -92,6 +97,7 @@ async function api(path, opts) {
 }
 async function init() {
   const meta = await api("/api/meta", { method: "GET" });
+  TYPES.push(...meta.types);
   const sel = document.getElementById("kit");
   meta.kits.forEach(k => { const o = document.createElement("option"); o.value = k; o.textContent = k; sel.appendChild(o); });
   const files = await api("/api/files", { method: "GET" });
@@ -100,6 +106,36 @@ async function init() {
   if (files.files.length) { fs.selectedIndex = 0; }
 }
 let lastNotes = [];
+function renderNotes(notes) {
+  lastNotes = notes;
+  document.getElementById("summary").textContent = `${notes.length} note events`;
+  document.getElementById("export").disabled = false;
+  const tb = document.querySelector("#notes tbody"); tb.innerHTML = "";
+  notes.slice(0, 200).forEach((n, i) => {
+    const tr = document.createElement("tr");
+    const sel = document.createElement("select");
+    TYPES.forEach(t => { const o = document.createElement("option"); o.value = t; o.textContent = t; if (t === n.type) o.selected = true; sel.appendChild(o); });
+    sel.onchange = () => edit({ action: "reassign", index: i, type: sel.value });
+    const nb = document.createElement("button"); nb.textContent = "−10"; nb.className = "rowbtn";
+    nb.onclick = () => edit({ action: "move", index: i, delta_s: -0.01 });
+    const pb = document.createElement("button"); pb.textContent = "+10"; pb.className = "rowbtn";
+    pb.onclick = () => edit({ action: "move", index: i, delta_s: 0.01 });
+    const db = document.createElement("button"); db.textContent = "del"; db.className = "rowbtn del";
+    db.onclick = () => edit({ action: "delete", index: i });
+    const td = document.createElement("td");
+    td.appendChild(sel); td.appendChild(nb); td.appendChild(pb); td.appendChild(db);
+    tr.innerHTML = `<td>${i + 1}</td><td></td><td>${n.onset_s.toFixed(3)}</td><td>${n.velocity.toFixed(3)}</td>`;
+    tr.children[1].replaceWith(td);
+    tb.appendChild(tr);
+  });
+}
+async function edit(body) {
+  const st = document.getElementById("status"); st.textContent = "editing…";
+  try {
+    const j = await api("/api/edit", { method: "POST", body: JSON.stringify(body) });
+    renderNotes(j.notes); st.textContent = "done";
+  } catch (e) { st.textContent = "error: " + e.message; }
+}
 async function run() {
   const btn = document.getElementById("run"); btn.disabled = true;
   const st = document.getElementById("status"); st.textContent = "processing…";
@@ -108,16 +144,7 @@ async function run() {
                    kit: document.getElementById("kit").value,
                    method: document.getElementById("method").value };
     const j = await api("/api/run", { method: "POST", body: JSON.stringify(body) });
-    lastNotes = j.notes;
-    document.getElementById("summary").textContent = `${j.count} note events`;
-    document.getElementById("export").disabled = false;
-    const tb = document.querySelector("#notes tbody"); tb.innerHTML = "";
-    j.notes.slice(0, 200).forEach((n, i) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${i + 1}</td><td><span class="badge">${n.type}</span></td>` +
-        `<td>${n.onset_s.toFixed(3)}</td><td>${n.velocity.toFixed(3)}</td>`;
-      tb.appendChild(tr);
-    });
+    renderNotes(j.notes);
     document.getElementById("results").style.display = "";
     st.textContent = "done";
   } catch (e) { st.textContent = "error: " + e.message; }
@@ -193,7 +220,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"files": files})
             elif path == "/api/meta":
                 self._json({"kits": list(PRESETS.keys()),
-                            "methods": ["trigger", "bands", "adtof", "strum", "dettato"]})
+                            "methods": ["trigger", "bands", "adtof", "strum", "dettato"],
+                            "types": list(DRUM_TYPES)})
             else:
                 self._deny("not found", 404)
 
@@ -203,6 +231,8 @@ class Handler(BaseHTTPRequestHandler):
             body = self._read_body()
             if path == "/api/run":
                 self._run(body)
+            elif path == "/api/edit":
+                self._edit(body)
             elif path == "/api/export":
                 self._export(body)
             else:
@@ -224,20 +254,39 @@ class Handler(BaseHTTPRequestHandler):
             sr, x = parse_audio(p)
             notes = transcribe(x, sr, method=body.get("method", "trigger"),
                                threshold_preset=body.get("preset", "tuned-mixwave"))
+            self.server.notes = notes
+            self.server.last_file = p
             self._json({"count": len(notes), "notes": notes})
         except Exception as e:  # surface real errors to the UI
             self._json({"error": f"{type(e).__name__}: {e}"}, 500)
 
-    def _export(self, body):
-        fn = body.get("file", "")
-        p = self._resolve(fn)
-        if p is None:
-            return self._deny("file not found")
+    def _edit(self, body):
+        notes = getattr(self.server, "notes", None)
+        if notes is None:
+            return self._deny("run transcription first", 409)
         try:
-            sr, x = parse_audio(p)
-            notes = transcribe(x, sr, method=body.get("method", "trigger"),
-                               threshold_preset=body.get("preset", "tuned-mixwave"))
-            out = p.with_suffix(".mid")
+            idx = int(body["index"])
+            action = body.get("action")
+            if action == "delete":
+                notes = delete_note(notes, idx)
+            elif action == "move":
+                notes = move_note(notes, idx, float(body.get("delta_s", 0)))
+            elif action == "reassign":
+                notes = reassign_note(notes, idx, body["type"])
+            else:
+                return self._deny(f"unknown action: {action}", 400)
+            self.server.notes = notes
+            self._json({"count": len(notes), "notes": notes})
+        except (KeyError, ValueError, TypeError, IndexError) as e:
+            self._json({"error": f"{type(e).__name__}: {e}"}, 400)
+
+    def _export(self, body):
+        notes = getattr(self.server, "notes", None)
+        fp = getattr(self.server, "last_file", None)
+        if notes is None or fp is None:
+            return self._deny("run transcription first", 409)
+        try:
+            out = fp.with_suffix(".mid")
             write_midi(notes, out, preset=body.get("kit", "gm"))
             self._json({"ok": True, "path": out.name, "count": len(notes)})
         except Exception as e:
@@ -264,6 +313,8 @@ def main(argv=None):
     server.token = token
     server.input_dir = input_dir
     server.verbose = args.verbose
+    server.notes = None
+    server.last_file = None
 
     print(f"Drum-MIDI web UI: http://{args.host}:{args.port}/")
     print(f"  input dir: {input_dir}")
