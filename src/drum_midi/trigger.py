@@ -4,7 +4,13 @@ import numpy as np
 from scipy import signal
 
 BANDS = [("kick", 20, 150), ("snare", 150, 500), ("floor", 500, 1200), ("rack2", 1200, 2500), ("rack1", 2500, 5000)]
-DEFAULT_CONFIG = {"threshold_k": 3.0, "min_distance_s": 0.04, "overlap_window_s": 0.010, "hat_min_hz": 5000.0, "velocity_curve": [[0.0, 0.0], [0.5, 0.55], [1.0, 1.0]]}
+DEFAULT_CONFIG = {"threshold_k": 3.0, "min_distance_s": 0.04, "overlap_window_s": 0.010, "hat_min_hz": 5000.0, "crash_decay_s": 0.2, "velocity_curve": [[0.0, 0.0], [0.5, 0.55], [1.0, 1.0]]}
+
+
+def classify_band(band_name: str, decay_s: float, config: dict) -> str:
+    if band_name == "hat_closed" and decay_s > config.get("crash_decay_s", 0.2):
+        return "crash1"
+    return band_name
 
 
 def apply_velocity_curve(peak: float, curve: list[list[float]]) -> float:
@@ -48,10 +54,11 @@ def trigger_transcribe(x, sr, config=None) -> list[dict]:
             end = peak + 1
             while end < len(envelope) and envelope[end] >= half:
                 end += 1
+            decay_s = (end - peak) / sr
             # Envelope peak is the onset proxy; scale to the strongest band peak.
             normalized_peak = value / (envelope.max() or 1)
             velocity = apply_velocity_curve(normalized_peak, cfg["velocity_curve"])
-            events.append({"type": name, "onset_s": peak / sr, "velocity": velocity})
+            events.append({"type": classify_band(name, decay_s, cfg), "onset_s": peak / sr, "velocity": velocity})
 
     # Align near-simultaneous band hits to one timestamp while retaining each type.
     events.sort(key=lambda n: (n["onset_s"], n["type"]))

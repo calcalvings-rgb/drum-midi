@@ -2,7 +2,8 @@ import sys
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from drum_midi.trigger import trigger_transcribe, apply_velocity_curve, DEFAULT_CONFIG
+from drum_midi.trigger import trigger_transcribe, apply_velocity_curve, DEFAULT_CONFIG, classify_band
+from drum_midi import maps
 
 def make_click(sr, freq, dur=0.04, amp=1.0):
     t = np.arange(int(sr*dur)) / sr
@@ -49,3 +50,11 @@ def test_velocity_curve_clamp():
     c = DEFAULT_CONFIG["velocity_curve"]
     assert apply_velocity_curve(-0.5, c) == 0.0
     assert apply_velocity_curve(1.5, c) == 1.0
+
+def test_crash_vs_hat_by_decay():
+    assert classify_band("hat_closed", 0.35, {}) == "crash1"
+    assert classify_band("hat_closed", 0.05, {}) == "hat_closed"
+
+def test_band_types_valid():
+    for b in ["kick","snare","floor","rack2","rack1","hat_closed"]:
+        assert classify_band(b, 0.05, {}) in maps.DRUM_TYPES
