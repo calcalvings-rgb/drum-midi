@@ -22,6 +22,7 @@ BANDS = [
 
 DEFAULT_CONFIG = {
     "threshold_k": 1.0,
+    "auto_calibrate": True,          # knee-detect flux threshold per file (no knob)
     "min_distance_s": 0.04,
     "overlap_window_s": 0.010,
     "hat_min_hz": 5000.0,
@@ -112,6 +113,28 @@ def classify_event(centroid_hz: float, duration: float, config: dict) -> str:
     return "crash1" if duration >= crash_dur else "hat_closed"
 
 
+def _calibrate_threshold(flux: np.ndarray, sr: int, cfg: dict) -> float:
+    """Auto-calibrate an onset threshold with no GT and no manual knob.
+
+    Sweep a percentile threshold over the flux distribution, count peaks at
+    each, and pick the corner (knee) of the count-vs-percentile curve — where
+    real hits saturate and the noise tail begins. Fall back to a fixed
+    low percentile if the curve is degenerate (no clear knee).
+    """
+    frame_dist = max(1, round(cfg["min_distance_s"] * sr / int(cfg["hop"])))
+    pcts = np.arange(85.0, 99.5, 0.5)
+    counts = np.empty_like(pcts)
+    for i, p in enumerate(pcts):
+        thr = float(np.percentile(flux, p))
+        counts[i] = len(signal.find_peaks(flux, height=thr, distance=frame_dist)[0])
+    x = np.arange(len(counts))
+    x0, y0, x1, y1 = x[0], counts[0], x[-1], counts[-1]
+    num = np.abs((y1 - y0) * x - (x1 - x0) * counts + x1 * y0 - y1 * x0)
+    den = float(np.hypot(y1 - y0, x1 - x0))
+    k = int(np.argmax(num / den)) if den > 0 else 0
+    return float(np.percentile(flux, pcts[k]))
+
+
 def trigger_transcribe(x, sr, config=None) -> list[dict]:
     if x is None or sr <= 0:
         return []
@@ -133,7 +156,10 @@ def trigger_transcribe(x, sr, config=None) -> list[dict]:
     smooth = int(cfg.get("flux_smooth", 2))
     if smooth > 1:
         flux = np.convolve(flux, np.ones(smooth) / smooth, mode="same")
-    thr = max(cfg["threshold_k"] * np.percentile(flux, 90), 0.03 * flux.max())
+    if cfg.get("auto_calibrate", True):
+        thr = _calibrate_threshold(flux, sr, cfg)
+    else:
+        thr = max(cfg["threshold_k"] * np.percentile(flux, 90), 0.03 * flux.max())
     frame_dist = max(1, round(cfg["min_distance_s"] * sr / int(cfg["hop"])))
     peaks, _ = signal.find_peaks(flux, height=thr, distance=frame_dist)
     # flux index i corresponds to time t[i+1]
