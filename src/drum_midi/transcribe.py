@@ -566,12 +566,37 @@ def transcribe_dispatch(
     raise ValueError(f"Unknown transcription method: {method}")
 
 
+def _estimate_tempo(x: np.ndarray | None, sr: int) -> float | None:
+    """Best-effort tempo (BPM) via librosa; None on any failure (no hard dep)."""
+    if x is None:
+        return None
+    try:
+        from librosa import beat
+        tempo, _ = beat.beat_track(y=x, sr=sr)
+        arr = np.atleast_1d(tempo)
+        return float(arr[0])
+    except Exception:
+        return None
+
+
 def transcribe(
-    x: np.ndarray | None, sr: int, method: str = "bands", threshold_preset: str = "tuned-mixwave"
+    x: np.ndarray | None, sr: int, method: str = "bands", threshold_preset: str = "tuned-mixwave",
+    groove: bool = True, flatten_cymbal: bool = False,
 ) -> list[dict]:
     """Transcribe percussion audio into drum events.
 
     ``threshold_preset`` selects the per-backend threshold preset
-    (see ``THRESHOLD_PRESETS``).
+    (see ``THRESHOLD_PRESETS``). ``groove`` runs post-processing cleanup
+    (collapse near-duplicate onsets, adaptive tempo window); ``flatten_cymbal``
+    merges ambiguous cymbal clusters into a single ``cymbal`` event.
     """
-    return transcribe_dispatch(x, sr, method=method, threshold_preset=threshold_preset)
+    notes = transcribe_dispatch(x, sr, method=method, threshold_preset=threshold_preset)
+    if not groove:
+        return notes
+    from drum_midi.groove import DrumEvent, groove_cleanup
+    tempo = _estimate_tempo(x, sr)
+    evs = [DrumEvent(n["onset_s"], n["type"], n.get("velocity", 100),
+                     n.get("confidence", 1.0)) for n in notes]
+    cleaned = groove_cleanup(evs, tempo_bpm=tempo, flatten_cymbal=flatten_cymbal)
+    return [{"type": e.instrument, "onset_s": e.time, "velocity": e.velocity}
+            for e in cleaned]
