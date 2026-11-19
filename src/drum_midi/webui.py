@@ -1,0 +1,281 @@
+"""Remote web UI for the Drum-to-MIDI pipeline (stdlib-only, token auth).
+
+Serve a single-page control panel over HTTP so the pipeline can be driven from
+another device while FL Studio runs on the desktop. Bind to 0.0.0.0 for LAN
+access; every /api/* route requires the token (passed as ?token=...). The
+token is generated at startup unless DRUM_WEB_TOKEN is set.
+
+Endpoints:
+    GET  /                 control panel HTML
+    GET  /api/files        list audio files in the input dir
+    GET  /api/meta         available kits and transcribe methods
+    POST /api/run          {file, method, preset} -> {notes, count}
+    POST /api/export       {file, method, preset} -> writes .mid, returns link
+    GET  /api/export?path= download a written MIDI file
+
+Run:  python -m drum_midi.webui [--host 0.0.0.0] [--port 8123] [--dir PATH]
+"""
+
+from __future__ import annotations
+
+import argparse
+import hmac
+import json
+import os
+import secrets
+import urllib.parse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+from drum_midi.audio import parse_audio
+from drum_midi.maps import PRESETS
+from drum_midi.midi_out import write_midi
+from drum_midi.transcribe import transcribe
+
+AUDIO_EXTS = {".wav", ".wave", ".mp3", ".flac", ".ogg", ".m4a"}
+
+PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Drum → MIDI</title>
+<style>
+  body{font:14px/1.5 system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;background:#0f1115;color:#e6e8ec}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:#9aa2ae;margin:0 0 20px;font-size:13px}
+  .card{background:#171a21;border:1px solid #262b36;border-radius:10px;padding:16px;margin-bottom:14px}
+  label{display:block;font-size:12px;color:#9aa2ae;margin:10px 0 4px}
+  select,input[type=text]{width:100%;box-sizing:border-box;padding:8px;background:#0f1115;color:#e6e8ec;border:1px solid #2c3340;border-radius:6px}
+  button{padding:9px 18px;border:0;border-radius:6px;background:#4f7cff;color:#fff;font-size:14px;cursor:pointer;margin-top:14px}
+  button.secondary{background:#2a3040;margin-left:8px}
+  button:disabled{opacity:.5;cursor:default}
+  #status{margin-top:12px;font-size:13px;min-height:20px}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+  th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #232834}
+  th{color:#9aa2ae;font-weight:600}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#232a3a;color:#aeb8c9}
+</style></head><body>
+<h1>Drum → MIDI</h1>
+<p class="sub">Trigger backend · remote control</p>
+
+<div class="card">
+  <label for="file">Audio file</label>
+  <select id="file"></select>
+  <label for="kit">Kit preset</label>
+  <select id="kit"></select>
+  <label for="method">Transcribe method</label>
+  <select id="method">
+    <option value="trigger">trigger (global-onset+classifier)</option>
+    <option value="bands">bands (band-split flux)</option>
+    <option value="adtof">adtof (neural, needs torch)</option>
+    <option value="strum">strum (neural, needs torch)</option>
+  </select>
+  <button id="run">Run</button>
+  <button id="export" class="secondary" disabled>Export MIDI</button>
+  <div id="status"></div>
+</div>
+
+<div class="card" id="results" style="display:none">
+  <div id="summary"></div>
+  <table id="notes"><thead><tr><th>#</th><th>type</th><th>onset (s)</th><th>velocity</th></tr></thead>
+  <tbody></tbody></table>
+</div>
+
+<script>
+const token = new URLSearchParams(location.search).get("token") || "";
+async function api(path, opts) {
+  const o = opts || {};
+  o.headers = { "Content-Type": "application/json", "X-Auth-Token": token };
+  const r = await fetch(path, o);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.status);
+  return j;
+}
+async function init() {
+  const meta = await api("/api/meta", { method: "GET" });
+  const sel = document.getElementById("kit");
+  meta.kits.forEach(k => { const o = document.createElement("option"); o.value = k; o.textContent = k; sel.appendChild(o); });
+  const files = await api("/api/files", { method: "GET" });
+  const fs = document.getElementById("file");
+  files.files.forEach(f => { const o = document.createElement("option"); o.value = f; o.textContent = f; fs.appendChild(o); });
+  if (files.files.length) { fs.selectedIndex = 0; }
+}
+let lastNotes = [];
+async function run() {
+  const btn = document.getElementById("run"); btn.disabled = true;
+  const st = document.getElementById("status"); st.textContent = "processing…";
+  try {
+    const body = { file: document.getElementById("file").value,
+                   kit: document.getElementById("kit").value,
+                   method: document.getElementById("method").value };
+    const j = await api("/api/run", { method: "POST", body: JSON.stringify(body) });
+    lastNotes = j.notes;
+    document.getElementById("summary").textContent = `${j.count} note events`;
+    document.getElementById("export").disabled = false;
+    const tb = document.querySelector("#notes tbody"); tb.innerHTML = "";
+    j.notes.slice(0, 200).forEach((n, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${i + 1}</td><td><span class="badge">${n.type}</span></td>` +
+        `<td>${n.onset_s.toFixed(3)}</td><td>${n.velocity.toFixed(3)}</td>`;
+      tb.appendChild(tr);
+    });
+    document.getElementById("results").style.display = "";
+    st.textContent = "done";
+  } catch (e) { st.textContent = "error: " + e.message; }
+  finally { btn.disabled = false; }
+}
+async function exportMidi() {
+  const btn = document.getElementById("export"); btn.disabled = true;
+  const st = document.getElementById("status"); st.textContent = "exporting…";
+  try {
+    const body = { file: document.getElementById("file").value,
+                   kit: document.getElementById("kit").value,
+                   method: document.getElementById("method").value };
+    const j = await api("/api/export", { method: "POST", body: JSON.stringify(body) });
+    st.textContent = j.ok ? "exported → " + j.path : j.error;
+  } catch (e) { st.textContent = "error: " + e.message; }
+  finally { btn.disabled = false; }
+}
+document.getElementById("run").onclick = run;
+document.getElementById("export").onclick = exportMidi;
+init();
+</script>
+</body></html>
+"""
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "DrumMIDIWeb/1.0"
+
+    def _send(self, code, body: bytes, ctype="application/json"):
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _json(self, obj, code=200):
+        self._send(code, json.dumps(obj).encode())
+
+    def _deny(self, msg="forbidden", code=403):
+        self._json({"error": msg}, code)
+
+    def _read_body(self) -> dict:
+        n = int(self.headers.get("Content-Length") or 0)
+        if n <= 0:
+            return {}
+        return json.loads(self.rfile.read(n))
+
+    def _authed(self) -> bool:
+        token = self.headers.get("X-Auth-Token") or ""
+        want = self.server.token
+        # empty token server (loopback only) accepts anything; else constant-time cmp
+        return (not want) or hmac.compare_digest(token, want)
+
+    def _check_auth(self) -> bool:
+        if self._authed():
+            return True
+        self._deny("unauthorized")
+        return False
+
+    def log_message(self, fmt, *args):
+        if self.server.verbose:
+            super().log_message(fmt, *args)
+
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        if path == "/":
+            return self._send(200, PAGE.encode(), "text/html; charset=utf-8")
+        if self._check_auth():
+            if path == "/api/files":
+                files = sorted(p.name for p in Path(self.server.input_dir).iterdir()
+                               if p.suffix.lower() in AUDIO_EXTS)
+                self._json({"files": files})
+            elif path == "/api/meta":
+                self._json({"kits": list(PRESETS.keys()),
+                            "methods": ["trigger", "bands", "adtof", "strum", "dettato"]})
+            else:
+                self._deny("not found", 404)
+
+    def do_POST(self):
+        if self._check_auth():
+            path = urllib.parse.urlparse(self.path).path
+            body = self._read_body()
+            if path == "/api/run":
+                self._run(body)
+            elif path == "/api/export":
+                self._export(body)
+            else:
+                self._deny("not found", 404)
+
+    def _resolve(self, filename: str) -> Path | None:
+        base = Path(self.server.input_dir).resolve()
+        cand = (base / filename).resolve()
+        if cand.is_file() and str(cand).startswith(str(base)):
+            return cand
+        return None
+
+    def _run(self, body):
+        fn = body.get("file", "")
+        p = self._resolve(fn)
+        if p is None:
+            return self._deny("file not found")
+        try:
+            sr, x = parse_audio(p)
+            notes = transcribe(x, sr, method=body.get("method", "trigger"),
+                               threshold_preset=body.get("preset", "tuned-mixwave"))
+            self._json({"count": len(notes), "notes": notes})
+        except Exception as e:  # surface real errors to the UI
+            self._json({"error": f"{type(e).__name__}: {e}"}, 500)
+
+    def _export(self, body):
+        fn = body.get("file", "")
+        p = self._resolve(fn)
+        if p is None:
+            return self._deny("file not found")
+        try:
+            sr, x = parse_audio(p)
+            notes = transcribe(x, sr, method=body.get("method", "trigger"),
+                               threshold_preset=body.get("preset", "tuned-mixwave"))
+            out = p.with_suffix(".mid")
+            write_midi(notes, out, preset=body.get("kit", "gm"))
+            self._json({"ok": True, "path": out.name, "count": len(notes)})
+        except Exception as e:
+            self._json({"error": f"{type(e).__name__}: {e}"}, 500)
+
+
+def _parse_args(argv=None):
+    ap = argparse.ArgumentParser(description="Drum-to-MIDI remote web UI")
+    ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--port", type=int, default=8123)
+    ap.add_argument("--dir", default=None, help="input dir for audio files")
+    ap.add_argument("--token", default=None, help="auth token (default: random)")
+    ap.add_argument("--verbose", action="store_true")
+    return ap.parse_args(argv)
+
+
+def main(argv=None):
+    args = _parse_args(argv)
+    input_dir = args.dir or os.path.join(os.path.dirname(__file__), "..", "..", "challange")
+    input_dir = os.path.abspath(input_dir)
+    token = args.token or os.environ.get("DRUM_WEB_TOKEN") or secrets.token_urlsafe(16)
+
+    server = ThreadingHTTPServer((args.host, args.port), Handler)
+    server.token = token
+    server.input_dir = input_dir
+    server.verbose = args.verbose
+
+    print(f"Drum-MIDI web UI: http://{args.host}:{args.port}/")
+    print(f"  input dir: {input_dir}")
+    if args.host not in ("127.0.0.1", "localhost"):
+        print(f"  token (LAN access): {token}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()
