@@ -99,8 +99,17 @@ PAGE = """<!doctype html>
     <select id="filter"><option value="">all types</option></select>
   </div>
   <div id="legend" class="legend"></div>
-  <table id="notes"><thead><tr><th>#</th><th>type</th><th>onset (s)</th><th>velocity</th><th></th></tr></thead>
-  <tbody></tbody></table>
+  <div id="rollwrap" style="position:relative;overflow-x:auto;border:1px solid #262b36;border-radius:8px">
+    <canvas id="roll"></canvas>
+  </div>
+  <div id="sel" style="display:none;margin-top:10px;padding:10px;background:#0f1115;border:1px solid #262b36;border-radius:8px">
+    <span style="color:#9aa2ae;font-size:12px">selected →</span>
+    <span id="selinfo" style="font-weight:600;margin:0 8px"></span>
+    <select id="seltype"></select>
+    <button id="mvL" class="rowbtn">−10ms</button>
+    <button id="mvR" class="rowbtn">+10ms</button>
+    <button id="seldel" class="rowbtn del">del</button>
+  </div>
 </div>
 
 <script>
@@ -124,43 +133,95 @@ async function init() {
   fc.onchange = () => renderNotes(lastNotes);
   const lg = document.getElementById("legend");
   TYPES.forEach(t => { const b = document.createElement("span"); b.className = "badge t-" + t; b.textContent = t; lg.appendChild(b); });
+  const stSel = document.getElementById("seltype");
+  TYPES.forEach(t => { const o = document.createElement("option"); o.value = t; o.textContent = t; stSel.appendChild(o); });
   const files = await api("/api/files", { method: "GET" });
   const fs = document.getElementById("file");
   files.files.forEach(f => { const o = document.createElement("option"); o.value = f; o.textContent = f; fs.appendChild(o); });
   if (files.files.length) { fs.selectedIndex = 0; }
 }
 let lastNotes = [];
-function renderNotes(notes) {
-  lastNotes = notes;
-  const filt = document.getElementById("filter").value;
+let selIndex = -1;
+const TYPE_COLOR = { kick:"#ff8a8a", snare:"#6db3ff", floor:"#e8b35a", rack1:"#e8b35a", rack2:"#e8b35a", crash1:"#c9a0ff", crash2:"#c9a0ff", hat_closed:"#b8c0cc", hat_open:"#b8c0cc", ride:"#b8c0cc", ride_bell:"#b8c0cc" };
+const LANE_H = 40, LBL_W = 96, AX_H = 22;
+
+function laneTypes(notes) {
+  const seen = [];
+  for (const t of TYPES) if (notes.some(n => n.type === t)) seen.push(t);
+  notes.forEach(n => { if (!seen.includes(n.type)) seen.push(n.type); });
+  return seen;
+}
+function viewMetrics(shown) {
+  let tMin = 0, tMax = shown.length ? Math.max(...shown.map(n => n.onset_s)) : 1;
+  const pad = Math.max(0.5, tMax * 0.02); tMin = Math.max(0, tMin - pad); tMax += pad;
+  const plotW = Math.max(200, document.getElementById("rollwrap").clientWidth - 4) - LBL_W - 14;
+  return { tMin, tMax, pxPerSec: plotW / (tMax - tMin) };
+}
+function drawRoll() {
+  const notes = lastNotes, filt = document.getElementById("filter").value;
   const shown = filt ? notes.filter(n => n.type === filt) : notes;
   document.getElementById("summary").textContent = `${shown.length} / ${notes.length} note events`;
   document.getElementById("export").disabled = false;
-  const tb = document.querySelector("#notes tbody"); tb.innerHTML = "";
-  shown.slice(0, 200).forEach((n, i) => {
-    const tr = document.createElement("tr");
-    const sel = document.createElement("select");
-    TYPES.forEach(t => { const o = document.createElement("option"); o.value = t; o.textContent = t; if (t === n.type) o.selected = true; sel.appendChild(o); });
-    sel.onchange = () => edit({ action: "reassign", index: notes.indexOf(n), type: sel.value });
-    const nb = document.createElement("button"); nb.textContent = "−10"; nb.className = "rowbtn";
-    nb.onclick = () => edit({ action: "move", index: notes.indexOf(n), delta_s: -0.01 });
-    const pb = document.createElement("button"); pb.textContent = "+10"; pb.className = "rowbtn";
-    pb.onclick = () => edit({ action: "move", index: notes.indexOf(n), delta_s: 0.01 });
-    const db = document.createElement("button"); db.textContent = "del"; db.className = "rowbtn del";
-    db.onclick = () => edit({ action: "delete", index: notes.indexOf(n) });
-    const td = document.createElement("td");
-    td.appendChild(sel); td.appendChild(nb); td.appendChild(pb); td.appendChild(db);
-    const badge = `<span class="badge t-${n.type}">${n.type}</span>`;
-    const vb = `<span class="velbar" style="width:${Math.max(2, Math.round(n.velocity * 60))}px"></span> ${n.velocity.toFixed(2)}`;
-    tr.innerHTML = `<td>${i + 1}</td><td>${badge}</td><td class="mono">${n.onset_s.toFixed(3)}</td><td>${vb}</td>`;
-    tr.appendChild(td);
-    tb.appendChild(tr);
+  const cvs = document.getElementById("roll");
+  const W = Math.max(300, document.getElementById("rollwrap").clientWidth - 4);
+  const lanes = laneTypes(notes);
+  cvs.width = W; cvs.height = lanes.length * LANE_H + AX_H;
+  const ctx = cvs.getContext("2d");
+  const m = viewMetrics(shown);
+  // grid ticks
+  ctx.font = "11px ui-monospace,Consolas,monospace";
+  const step = [0.25, 0.5, 1, 2, 5].find(s => (m.tMax / s) <= 24) || 10;
+  for (let tt = Math.ceil(m.tMin / step) * step; tt <= m.tMax + 1e-9; tt += step) {
+    const x = LBL_W + (tt - m.tMin) * m.pxPerSec; if (x > W) break;
+    ctx.strokeStyle = "#20252f"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cvs.height - AX_H); ctx.stroke();
+    ctx.fillStyle = "#77808f"; ctx.fillText(tt.toFixed(step < 1 ? 2 : 0), x + 3, cvs.height - 6);
+  }
+  lanes.forEach((t, i) => {
+    const y = i * LANE_H;
+    ctx.fillStyle = i % 2 ? "#151820" : "#12151d"; ctx.fillRect(LBL_W, y, W - LBL_W, LANE_H);
+    ctx.fillStyle = "#b9c1cf"; ctx.fillText(t, 8, y + LANE_H * 0.62);
+    ctx.strokeStyle = "#222736"; ctx.strokeRect(LBL_W, y, W - LBL_W, LANE_H);
+    shown.forEach(n => {
+      if (n.type !== t) return;
+      const x = LBL_W + (n.onset_s - m.tMin) * m.pxPerSec;
+      const bw = Math.max(5, Math.min(14, 6 + n.velocity * 10));
+      ctx.fillStyle = TYPE_COLOR[n.type] || "#888"; ctx.globalAlpha = 0.4 + 0.6 * n.velocity;
+      ctx.fillRect(x, y + 7, bw, LANE_H - 14); ctx.globalAlpha = 1;
+      if (notes.indexOf(n) === selIndex) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(x - 2, y + 4, bw + 4, LANE_H - 8); ctx.lineWidth = 1; }
+    });
   });
 }
+function updatePanel() {
+  const panel = document.getElementById("sel");
+  if (selIndex < 0 || selIndex >= lastNotes.length) { panel.style.display = "none"; return; }
+  const n = lastNotes[selIndex];
+  document.getElementById("selinfo").textContent = `${n.type} @ ${n.onset_s.toFixed(3)}s · v=${n.velocity.toFixed(2)}`;
+  document.getElementById("seltype").value = n.type;
+  panel.style.display = "";
+}
+function selectNote(i) { selIndex = i; updatePanel(); drawRoll(); }
+function onRollClick(ev) {
+  const cvs = document.getElementById("roll");
+  const r = cvs.getBoundingClientRect();
+  const X = ev.clientX - r.left, Y = ev.clientY - r.top;
+  const notes = lastNotes, filt = document.getElementById("filter").value;
+  const shown = filt ? notes.filter(n => n.type === filt) : notes;
+  const m = viewMetrics(shown);
+  const lanes = laneTypes(notes);
+  const lane = Math.floor(Y / LANE_H);
+  if (lane < 0 || lane >= lanes.length) return;
+  const type = lanes[lane];
+  const tAt = (X - LBL_W) / m.pxPerSec + m.tMin;
+  let best = -1, bd = 12 / m.pxPerSec;
+  shown.forEach(n => { if (n.type !== type) return; const d = Math.abs(n.onset_s - tAt); if (d <= bd) { bd = d; best = notes.indexOf(n); } });
+  selectNote(best);
+}
+function renderNotes(notes) { lastNotes = notes; drawRoll(); updatePanel(); }
 async function edit(body) {
   const st = document.getElementById("status"); st.textContent = "editing…";
   try {
     const j = await api("/api/edit", { method: "POST", body: JSON.stringify(body) });
+    if (selIndex >= j.notes.length) selIndex = j.notes.length - 1;
     renderNotes(j.notes); st.textContent = "done";
   } catch (e) { st.textContent = "error: " + e.message; }
 }
@@ -211,6 +272,12 @@ async function upload() {
 document.getElementById("run").onclick = run;
 document.getElementById("export").onclick = exportMidi;
 document.getElementById("upbtn").onclick = upload;
+document.getElementById("roll").addEventListener("click", onRollClick);
+document.getElementById("mvL").onclick = () => { if (selIndex >= 0) edit({ action: "move", index: selIndex, delta_s: -0.01 }); };
+document.getElementById("mvR").onclick = () => { if (selIndex >= 0) edit({ action: "move", index: selIndex, delta_s: 0.01 }); };
+document.getElementById("seldel").onclick = () => { if (selIndex >= 0) edit({ action: "delete", index: selIndex }); };
+document.getElementById("seltype").onchange = () => { if (selIndex >= 0) edit({ action: "reassign", index: selIndex, type: document.getElementById("seltype").value }); };
+window.addEventListener("resize", () => { if (lastNotes.length) drawRoll(); });
 init();
 </script>
 </body></html>
