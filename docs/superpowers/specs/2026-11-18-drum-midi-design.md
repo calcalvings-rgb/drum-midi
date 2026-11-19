@@ -14,8 +14,8 @@ App konversi audio drum jadi MIDI, kebaca FL Studio piano roll, bisa diedit. Det
 - Gak support polyphonic non-drum (melodi, vokal) ke MIDI.
 
 ## Anti-goals
-- Gak nambah dep idle di box. Gak ada server/daemon.
-- Gak bikin web UI.
+- Gak nambah dep idle di box. Gak ada server/daemon di repo ini.
+- Gak bikin web UI sebagai komponen utama (webui.py optional, on-demand).
 
 ## Constraints
 - Windows, box lokal (CPU; GPU kalau ada).

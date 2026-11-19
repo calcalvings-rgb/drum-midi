@@ -79,6 +79,23 @@ Web UI (LAN):
 ```
 buka `http://<IP-desktop>:8123/?token=<token>` dari device lain.
 
+## Workflow via Hermes (drum → FL)
+
+Repo ini adalah mesin murni (library); integrasi FL Studio **lewat [flstudio-mcp](https://github.com/calcalvings-rgb/flstudio-mcp)**, diorchestrasi oleh Hermes. Pola yang dipakai:
+
+```
+main drum asli (WAV) → transcribe (dettato GPU) → humanize → apply ke FL @ tempo lagu
+```
+
+1. **Transcribe**: `drum_midi.transcribe.transcribe(x, sr, method="dettato", threshold_preset="tuned-mixwave", groove=True)` → `[{type, onset_s, velocity}]`.
+2. **MIDI**: `drum_midi.midi_out.write_midi(notes, out, preset="mixwave_sleep_token", tempo=...)`.
+3. **Tempo lagu**: librosa `beat_track` pada full mix (harus mono — `np.mean(y, axis=1)`; stereo bikin librosa alokasi ratusan GB). Stem bass doang gak valid (tempo lebih rendah).
+4. **Set tempo FL + apply notes** via daemon flstudio-mcp `:9787`:
+   - `set_tempo` / `get_tempo` untuk tempo.
+   - `apply_notes` = op top-level (`{"op":"apply_notes","notes":...,"mode":"replace","trigger":true}`), BUKAN `cmd` di dalam `call`. `time_bars = t * BPM / 240.0`.
+   - Kalau notes tak muncul: jalankan "MCP Apply" sekali dari Piano roll → Scripting (satu-satunya langkah manual; arm shortcut tidak bisa di-automasi).
+5. **Humanize**: downbeat (kick/snare) solid — jitter ±1.5ms, vel ±3%; off-beat (hi-hat) hidup — jitter ±5ms, vel ±8%; cymbal di tengah.
+
 ## Tes
 
 ```powershell
