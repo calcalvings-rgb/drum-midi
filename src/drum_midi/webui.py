@@ -64,6 +64,10 @@ PAGE = """<!doctype html>
 <div class="card">
   <label for="file">Audio file</label>
   <select id="file"></select>
+  <div style="margin-top:10px;display:flex;gap:8px">
+    <input type="file" id="upfile" accept="audio/*" style="flex:1">
+    <button id="upbtn" class="secondary">Upload</button>
+  </div>
   <label for="kit">Kit preset</label>
   <select id="kit"></select>
   <label for="method">Transcribe method</label>
@@ -162,8 +166,27 @@ async function exportMidi() {
   } catch (e) { st.textContent = "error: " + e.message; }
   finally { btn.disabled = false; }
 }
+async function upload() {
+  const f = document.getElementById("upfile").files[0];
+  if (!f) return;
+  const st = document.getElementById("status"); st.textContent = "uploading " + f.name + "…";
+  const r = await fetch("/api/upload?name=" + encodeURIComponent(f.name), {
+    method: "POST",
+    headers: { "X-Auth-Token": token, "Content-Type": "application/octet-stream" },
+    body: f
+  });
+  const j = await r.json();
+  if (!r.ok) { st.textContent = "upload error: " + (j.error || r.status); return; }
+  st.textContent = "uploaded → " + j.file;
+  const files = await api("/api/files", { method: "GET" });
+  const fs = document.getElementById("file");
+  fs.innerHTML = "";
+  files.files.forEach(nm => { const o = document.createElement("option"); o.value = nm; o.textContent = nm; fs.appendChild(o); });
+  if (files.files.length) { fs.value = j.file; }
+}
 document.getElementById("run").onclick = run;
 document.getElementById("export").onclick = exportMidi;
+document.getElementById("upbtn").onclick = upload;
 init();
 </script>
 </body></html>
@@ -228,6 +251,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self._check_auth():
             path = urllib.parse.urlparse(self.path).path
+            if path == "/api/upload":
+                return self._upload()
             body = self._read_body()
             if path == "/api/run":
                 self._run(body)
@@ -237,6 +262,28 @@ class Handler(BaseHTTPRequestHandler):
                 self._export(body)
             else:
                 self._deny("not found", 404)
+
+    def _upload(self):
+        q = urllib.parse.urlparse(self.path)
+        name = urllib.parse.parse_qs(q.query).get("name", [""])[0]
+        name = Path(name).name  # strip any path/traversal
+        if not name or Path(name).suffix.lower() not in AUDIO_EXTS:
+            return self._deny("name must be an audio file (.wav/.mp3/...)", 400)
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            n = 0
+        if n <= 0:
+            return self._deny("empty upload", 400)
+        data = self.rfile.read(n)
+        if len(data) != n:
+            return self._deny("short read", 400)
+        base = Path(self.server.input_dir).resolve()
+        out = (base / name).resolve()
+        if not str(out).startswith(str(base)):
+            return self._deny("bad path", 400)
+        out.write_bytes(data)
+        return self._json({"ok": True, "file": out.name})
 
     def _resolve(self, filename: str) -> Path | None:
         base = Path(self.server.input_dir).resolve()

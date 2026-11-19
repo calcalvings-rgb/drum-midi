@@ -73,3 +73,36 @@ def test_edit_requires_run_first():
     h._json = lambda obj, code=200: (obj, code)
     obj, code = h._edit({"action": "delete", "index": 0})
     assert code == 409
+
+
+def test_upload_saves_audio_file(tmp_path):
+    h = _handler()
+    h.server.input_dir = str(tmp_path)
+    h._json = lambda obj, code=200: (obj, code)
+    h.path = "/api/upload?name=kick.wav"
+    h.headers = type("H", (), {"get": lambda self, k, d=None: "4"})()
+    h.rfile = type("R", (), {"read": lambda self, n: b"RIFF"})()
+    obj, code = h._upload()
+    assert code == 200 and obj["file"] == "kick.wav"
+    assert (tmp_path / "kick.wav").read_bytes() == b"RIFF"
+
+
+def test_upload_sanitizes_path_traversal(tmp_path):
+    h = _handler()
+    h.server.input_dir = str(tmp_path)
+    h._json = lambda obj, code=200: (obj, code)
+    h.path = "/api/upload?name=../../../../evil.wav"
+    h.headers = type("H", (), {"get": lambda self, k, d=None: "1"})()
+    h.rfile = type("R", (), {"read": lambda self, n: b"x"})()
+    obj, code = h._upload()
+    assert code == 200 and obj["file"] == "evil.wav"
+    assert (tmp_path / "evil.wav").exists()
+
+
+def test_upload_rejects_bad_extension(tmp_path):
+    h = _handler()
+    h.server.input_dir = str(tmp_path)
+    h._json = lambda obj, code=200: (obj, code)
+    h.path = "/api/upload?name=evil.exe"
+    obj, code = h._upload()
+    assert code == 400
