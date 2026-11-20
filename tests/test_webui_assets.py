@@ -38,3 +38,12 @@ def test_frontend_uses_local_assets_only():
         if tag in {"script", "link", "img"}:
             resource = attrs.get("src", attrs.get("href", ""))
             assert not resource.startswith(("http", "//"))
+
+
+def test_music_workspace_has_direct_copy_and_no_invented_brand_asset():
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    assert "—" not in html
+    assert "From real drums." not in html
+    assert "brand-mark" not in html
+    assert "empty-roll" not in html
+    assert 'id="take-name"' in html

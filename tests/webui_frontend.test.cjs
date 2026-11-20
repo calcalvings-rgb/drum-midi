@@ -54,3 +54,27 @@ test('startup with no recordings allows upload but not transcription', async () 
   assert.equal(elements.get('export').disabled, true);
   assert.equal(elements.get('connection').dataset.ready, 'true');
 });
+
+
+test('a completed transcription with zero hits shows a useful empty state', async () => {
+  const { sandbox, elements } = await app();
+  vm.runInContext('hasResult = true; renderNotes([]);', sandbox);
+  assert.equal(elements.get('results').style.display, 'none');
+  assert.equal(elements.get('empty').style.display, '');
+  assert.equal(elements.get('empty-heading').textContent, 'No hits detected');
+  assert.match(elements.get('empty-description').textContent, /different engine/);
+});
+
+
+test('keyboard selects hits in the filtered timeline without a pointer', async () => {
+  const { sandbox, elements } = await app();
+  vm.runInContext('lastNotes = [{type:"kick",onset_s:1,velocity:.8},{type:"snare",onset_s:2,velocity:.7}]; hasResult = true; onRollKey({key:"ArrowDown", preventDefault(){}});', sandbox);
+  assert.match(elements.get('selinfo').textContent, /kick/);
+  vm.runInContext('onRollKey({key:"ArrowDown", preventDefault(){}});', sandbox);
+  assert.match(elements.get('selinfo').textContent, /snare/);
+  vm.runInContext('onRollKey({key:"Escape", preventDefault(){}});', sandbox);
+  assert.equal(elements.get('sel').style.display, 'none');
+  elements.get('filter').value = 'snare';
+  vm.runInContext('onRollKey({key:"ArrowDown", preventDefault(){}});', sandbox);
+  assert.match(elements.get('selinfo').textContent, /snare/);
+});

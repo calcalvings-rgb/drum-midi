@@ -35,7 +35,7 @@ async function init() {
   meta.kits.forEach(k => { const o = document.createElement("option"); o.value = k; o.textContent = k; sel.appendChild(o); });
   const fc = document.getElementById("filter");
   TYPES.forEach(t => { const o = document.createElement("option"); o.value = t; o.textContent = t; fc.appendChild(o); });
-  fc.onchange = () => renderNotes(lastNotes);
+  fc.onchange = () => { selIndex = -1; view = null; renderNotes(lastNotes); };
   const lg = document.getElementById("legend");
   TYPES.forEach(t => { const b = document.createElement("span"); b.className = "badge t-" + t; b.textContent = t; lg.appendChild(b); });
   const stSel = document.getElementById("seltype");
@@ -44,18 +44,18 @@ async function init() {
   const fs = document.getElementById("file");
   files.files.forEach(f => { const o = document.createElement("option"); o.value = f; o.textContent = f; fs.appendChild(o); });
   fs.replaceChildren(...files.files.map(f => new Option(f, f)));
-  if (!files.files.length) fs.add(new Option("No audio files yet — upload a take", ""));
+  if (!files.files.length) fs.add(new Option("No recordings yet. Upload audio to begin.", ""));
   initialized = true;
   syncControls();
   const connection = document.getElementById("connection");
-  connection.textContent = "Local engine connected"; connection.dataset.ready = "true";
+  connection.textContent = "Engine connected"; connection.dataset.ready = "true";
   status(files.files.length ? "Ready when you are." : "Upload a recording to get started.");
 }
 let lastNotes = [];
 let selIndex = -1;
 let drag = null;
 let view = null, pan = null, lastPps = 100, fullRng = 1;
-const TYPE_COLOR = { kick:"#ff8a8a", snare:"#6db3ff", floor:"#e8b35a", rack1:"#e8b35a", rack2:"#e8b35a", crash1:"#c9a0ff", crash2:"#c9a0ff", hat_closed:"#b8c0cc", hat_open:"#b8c0cc", ride:"#b8c0cc", ride_bell:"#b8c0cc" };
+const TYPE_COLOR = { kick:"#f58b62", snare:"#8dd6c2", floor:"#b7a4e8", rack1:"#b7a4e8", rack2:"#b7a4e8" };
 const LANE_H = 54, LBL_W = 112, AX_H = 28;
 
 function laneTypes(notes) {
@@ -81,48 +81,56 @@ function currentShown() {
   return filt ? lastNotes.filter(n => n.type === filt) : lastNotes;
 }
 function drawRoll() {
-  const notes = lastNotes, filt = document.getElementById("filter").value;
-  const shown = filt ? notes.filter(n => n.type === filt) : notes;
+  const notes = lastNotes, shown = currentShown();
   document.getElementById("summary").textContent = `${shown.length} / ${notes.length} note events`;
   syncControls();
   const cvs = document.getElementById("roll");
   const W = Math.max(1, document.getElementById("rollwrap").clientWidth);
   const lanes = laneTypes(notes);
   cvs.width = W; cvs.height = lanes.length * LANE_H + AX_H;
-  const ctx = cvs.getContext("2d");
-  const f = fullView(shown);
-  const v = curView(shown);
-  fullRng = f.dur;
-  const cW = W - LBL_W - 14;
+  const ctx = cvs.getContext("2d"), v = curView(shown);
+  fullRng = fullView(shown).dur;
+  const cW = Math.max(1, W - LBL_W - 14);
   lastPps = cW / v.dur;
-  ctx.font = "12px ui-monospace,Consolas,monospace";
+  ctx.fillStyle = "#131518"; ctx.fillRect(0, 0, W, cvs.height);
+  lanes.forEach((type, i) => {
+    const y = i * LANE_H;
+    ctx.fillStyle = i % 2 ? "#1b1e24" : "#16181d";
+    ctx.fillRect(LBL_W, y, W - LBL_W, LANE_H);
+    ctx.fillStyle = "#e6e8ec"; ctx.font = "13px system-ui,sans-serif";
+    ctx.fillText(type, 10, y + LANE_H * 0.58);
+    ctx.strokeStyle = "#383d45"; ctx.strokeRect(LBL_W, y, W - LBL_W, LANE_H);
+  });
   const targetStep = v.dur / Math.max(1, Math.floor(cW / 64));
   const magnitude = 10 ** Math.floor(Math.log10(targetStep));
   const step = [1, 2, 5, 10].map(s => s * magnitude).find(s => s >= targetStep);
+  ctx.font = "12px ui-monospace,Consolas,monospace";
   for (let tt = Math.ceil(v.start / step) * step; tt <= v.start + v.dur + 1e-9; tt += step) {
     const x = LBL_W + (tt - v.start) * lastPps;
-    ctx.strokeStyle = "#20252f"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cvs.height - AX_H); ctx.stroke();
-    ctx.fillStyle = "#77808f"; ctx.fillText(tt.toFixed(step < 0.25 ? 3 : step < 1 ? 2 : 0), x + 3, cvs.height - 8);
+    ctx.strokeStyle = "#383d45"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cvs.height - AX_H); ctx.stroke();
+    if (x < W - 35) {
+      ctx.fillStyle = "#b2b7c2";
+      ctx.fillText(tt.toFixed(step < 0.25 ? 3 : step < 1 ? 2 : 0) + "s", x + 3, cvs.height - 8);
+    }
   }
-  lanes.forEach((t, i) => {
-    const y = i * LANE_H;
-    ctx.fillStyle = i % 2 ? "#151820" : "#12151d"; ctx.fillRect(LBL_W, y, W - LBL_W, LANE_H);
-    ctx.fillStyle = "#c3cbd8"; ctx.font = "13px system-ui,sans-serif"; ctx.fillText(t, 10, y + LANE_H * 0.58);
-    ctx.strokeStyle = "#222736"; ctx.strokeRect(LBL_W, y, W - LBL_W, LANE_H);
-    shown.forEach(n => {
-      const di = notes.indexOf(n);
-      const eff = (drag && di === drag.idx) ? drag : null;
-      const ty = eff ? eff.curType : n.type;
-      const os = eff ? eff.curOnset : n.onset_s;
-      if (ty !== t) return;
-      const x = LBL_W + (os - v.start) * lastPps;
-      if (x < LBL_W - 40 || x > W + 20) return;
-      const bw = Math.max(6, Math.min(18, 7 + n.velocity * 12));
-      ctx.fillStyle = TYPE_COLOR[ty] || "#888"; ctx.globalAlpha = 0.4 + 0.6 * n.velocity;
-      ctx.fillRect(x, y + 9, bw, LANE_H - 18); ctx.globalAlpha = 1;
-      if (di === selIndex) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.strokeRect(x - 3, y + 6, bw + 6, LANE_H - 12); ctx.lineWidth = 1; }
-    });
+  ctx.save(); ctx.beginPath(); ctx.rect(LBL_W, 0, W - LBL_W, cvs.height - AX_H); ctx.clip();
+  notes.forEach((n, index) => {
+    if (!shown.includes(n)) return;
+    const eff = drag && index === drag.idx ? drag : null;
+    const type = eff ? eff.curType : n.type, onset = eff ? eff.curOnset : n.onset_s;
+    const lane = lanes.indexOf(type);
+    if (lane < 0) return;
+    const x = LBL_W + (onset - v.start) * lastPps, y = lane * LANE_H;
+    const width = Math.max(6, Math.min(18, 7 + n.velocity * 12));
+    ctx.fillStyle = TYPE_COLOR[type] || "#c9cbd1";
+    ctx.globalAlpha = 0.65 + 0.35 * n.velocity;
+    ctx.fillRect(x, y + 9, width, LANE_H - 18); ctx.globalAlpha = 1;
+    if (index === selIndex) {
+      ctx.strokeStyle = "#f1f0ed"; ctx.lineWidth = 2.5;
+      ctx.strokeRect(x - 3, y + 6, width + 6, LANE_H - 12); ctx.lineWidth = 1;
+    }
   });
+  ctx.restore();
 }
 function updatePanel() {
   const panel = document.getElementById("sel");
@@ -133,6 +141,29 @@ function updatePanel() {
   panel.style.display = "";
 }
 function selectNote(i) { selIndex = i; updatePanel(); drawRoll(); }
+function onRollKey(event) {
+  if (busy || !hasResult) return;
+  const keys = ["ArrowDown", "ArrowUp", "Home", "End", "Enter", "ArrowLeft", "ArrowRight", "Delete", "Backspace", "Escape"];
+  if (!keys.includes(event.key)) return;
+  event.preventDefault();
+  if (event.key === "Escape") { selectNote(-1); return; }
+  const shown = currentShown();
+  const indices = shown.map(n => lastNotes.indexOf(n)).sort((a, b) => lastNotes[a].onset_s - lastNotes[b].onset_s);
+  if (!indices.length) return;
+  const pos = indices.indexOf(selIndex);
+  if (["ArrowDown", "ArrowUp", "Home", "End", "Enter"].includes(event.key)) {
+    let next = pos < 0 ? 0 : pos;
+    if (event.key === "ArrowDown") next = Math.min(pos + 1, indices.length - 1);
+    if (event.key === "ArrowUp") next = pos < 0 ? indices.length - 1 : Math.max(0, pos - 1);
+    if (event.key === "Home") next = 0;
+    if (event.key === "End") next = indices.length - 1;
+    selectNote(indices[next]); return;
+  }
+  if (pos < 0) return;
+  if (["Delete", "Backspace"].includes(event.key)) edit({ action: "delete", index: selIndex });
+  else edit({ action: "move", index: selIndex, delta_s: event.key === "ArrowLeft" ? -0.01 : 0.01 });
+}
+
 function noteAt(ev) {
   const cvs = document.getElementById("roll");
   const r = cvs.getBoundingClientRect();
@@ -168,6 +199,7 @@ function zoomBy(factor) {
 }
 function onDown(ev) {
   if (busy || !hasResult) return;
+  document.getElementById("roll").focus({ preventScroll: true });
   const hit = noteAt(ev);
   if (!hit) {
     const v = curView(currentShown());
@@ -209,8 +241,12 @@ async function onUp() {
 }
 function renderNotes(notes) {
   lastNotes = notes;
-  document.getElementById("results").style.display = "";
-  document.getElementById("empty").style.display = "none";
+  document.getElementById("results").style.display = notes.length ? "" : "none";
+  document.getElementById("empty").style.display = notes.length ? "none" : "";
+  if (!notes.length && hasResult) {
+    document.getElementById("empty-heading").textContent = "No hits detected";
+    document.getElementById("empty-description").textContent = "Try a different engine or another recording, then transcribe again.";
+  }
   drawRoll(); updatePanel();
 }
 async function edit(body) {
@@ -235,6 +271,7 @@ async function run() {
                    protect_grooves: document.getElementById("protgrooves").checked };
     const j = await api("/api/run", { method: "POST", body: JSON.stringify(body) });
     hasResult = true; selIndex = -1; view = null; drag = null; pan = null;
+    document.getElementById("take-name").textContent = body.file;
     renderNotes(j.notes);
     status(j.notes.length ? `${j.notes.length} hits ready. Select a hit to refine it.` : "No hits detected. Try a different engine or recording.");
   } catch (e) { status("Transcription failed: " + e.message, "error"); }
@@ -269,6 +306,7 @@ document.getElementById("run").onclick = run;
 document.getElementById("export").onclick = exportMidi;
 document.getElementById("upbtn").onclick = upload;
 document.getElementById("roll").addEventListener("mousedown", onDown);
+document.getElementById("roll").addEventListener("keydown", onRollKey);
 document.addEventListener("mousemove", onMove);
 document.addEventListener("mouseup", onUp);
 document.getElementById("roll").addEventListener("wheel", e => { e.preventDefault(); zoomBy(e.deltaY > 0 ? 1.25 : 0.8); }, { passive: false });
@@ -283,6 +321,7 @@ document.getElementById("mvR").onclick = () => { if (selIndex >= 0) edit({ actio
 document.getElementById("seldel").onclick = () => { if (selIndex >= 0) edit({ action: "delete", index: selIndex }); };
 document.getElementById("seltype").onchange = () => { if (selIndex >= 0) edit({ action: "reassign", index: selIndex, type: document.getElementById("seltype").value }); };
 window.addEventListener("resize", () => { if (hasResult) drawRoll(); });
+if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => { if (hasResult) drawRoll(); }).observe(document.getElementById("rollwrap"));
 document.getElementById("file").onchange = syncControls;
 init().catch(e => {
   document.getElementById("connection").textContent = "Engine unavailable";
