@@ -13,7 +13,8 @@ Drum transcription tools output note lists; you still spend hours dragging notes
 ## Quickstart
 
 ```powershell
-# desktop GUI
+# desktop GUI (Sun Valley dark theme)
+.venv\Scripts\python.exe -m pip install -r requirements-gui.txt
 .venv\Scripts\python.exe drum_midi.py
 
 # remote web UI (LAN)
@@ -41,6 +42,9 @@ Headless generation:
 (BOTH flags required: `--basetemp=.pytest_tmp` because default points at hermes scratch → teardown fails on Windows; `-p no:cacheprovider` because TMPDIR hermes scratch.)
 
 Synthetic fixtures: `python -m tests.make_fixtures`.
+
+Optional frontend renderer tests (Node test runner only, no npm install or build):
+`node --test tests/webui_frontend.test.cjs`. Node is not required to run the app.
 
 ## License & data
 

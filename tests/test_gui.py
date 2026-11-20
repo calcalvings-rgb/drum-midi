@@ -166,3 +166,60 @@ def test_entrypoint_drum_midi():
     env = runpy.run_path(str(entrypoint_path), run_name="drum_midi_entrypoint")
     assert "DrumMidiApp" in env
     assert "main" in env
+
+
+def test_dark_theme_applies_sun_valley(root):
+    from drum_midi.gui import apply_dark_theme
+    assert apply_dark_theme(root) is True
+    assert root.tk.call("ttk::style", "theme", "use") == "sun-valley-dark"
+
+
+def test_missing_theme_has_clear_warning_and_dark_fallback(root, monkeypatch):
+    import sys
+    from drum_midi.gui import apply_dark_theme
+    monkeypatch.setitem(sys.modules, "sv_ttk", None)
+    with pytest.warns(RuntimeWarning, match="sv-ttk"):
+        assert apply_dark_theme(root) is False
+    assert root.tk.call("ttk::style", "theme", "use") == "clam"
+    assert root.cget("background") == "#0d1017"
+
+
+def test_transcription_shows_busy_state_before_backend_work(root, monkeypatch, tmp_path):
+    import drum_midi.gui as gui
+    app = DrumMidiApp(root)
+    source = tmp_path / "busy.wav"
+    source.write_bytes(b"fixture")
+    app.input_path_var.set(str(source))
+    app.mode_input_var.set("stem")
+    monkeypatch.setattr(gui, "parse_audio", lambda *a, **k: (44100, [0]))
+    observed = []
+    def transcribe(*args, **kwargs):
+        observed.append(("transcribing" in app.result_var.get().lower(), app.process_button.instate(["disabled"])))
+        return []
+    monkeypatch.setattr(gui, "transcribe", transcribe)
+    app.process()
+    assert observed == [(True, True)]
+    assert "Completed" in app.result_var.get()
+    assert app.process_button.instate(["!disabled"])
+
+
+def test_keyboard_selects_and_retimes_without_pointer(root):
+    app = DrumMidiApp(root)
+    app.notes = [{"type": "kick", "onset_s": .5, "velocity": .8}]
+    app._on_key(type("Event", (), {"keysym": "Down"})())
+    assert app.selected_note == 0
+    app._on_key(type("Event", (), {"keysym": "Right"})())
+    assert app.notes[0]["onset_s"] == pytest.approx(.51)
+    app._on_key(type("Event", (), {"keysym": "Escape"})())
+    assert app.selected_note is None
+
+
+def test_editor_canvas_matches_dark_theme(root):
+    app = DrumMidiApp(root)
+    assert app.roll.cget("background") == "#131518"
+    assert app.root.title() == "GrooveForge"
+    app.notes = [{"type": "kick", "onset_s": .5, "velocity": .8}]
+    app.selected_note = 0
+    app.render_notes()
+    item = app.roll.find_withtag("note:0")[0]
+    assert app.roll.itemcget(item, "outline") == "#e6e8ec"
