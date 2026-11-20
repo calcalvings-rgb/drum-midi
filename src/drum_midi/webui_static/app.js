@@ -1,6 +1,22 @@
 
 const token = new URLSearchParams(location.search).get("token") || "";
 const TYPES = [];
+let initialized = false, busy = false, hasResult = false;
+function status(message, state = "ready") {
+  const el = document.getElementById("status");
+  el.textContent = message; el.dataset.state = state;
+}
+function syncControls() {
+  for (const id of ["file", "kit", "method", "upbtn", "upfile", "groove", "flatten", "velsmooth", "protgrooves"]) {
+    document.getElementById(id).disabled = !initialized || busy;
+  }
+  document.getElementById("run").disabled = !initialized || busy || !document.getElementById("file").value;
+  document.getElementById("export").disabled = !hasResult || busy;
+  for (const id of ["filter", "zin", "zout", "zfit", "seltype", "mvL", "mvR", "seldel"]) document.getElementById(id).disabled = busy;
+  document.getElementById("workspace").setAttribute("aria-busy", String(busy));
+}
+function setBusy(value) { busy = value; syncControls(); }
+
 async function api(path, opts) {
   const o = opts || {};
   o.headers = { "Content-Type": "application/json", "X-Auth-Token": token };
@@ -12,6 +28,9 @@ async function api(path, opts) {
 async function init() {
   const meta = await api("/api/meta", { method: "GET" });
   TYPES.push(...meta.types);
+  const methods = document.getElementById("method");
+  methods.replaceChildren(...meta.methods.map(m => new Option(m, m)));
+  methods.value = "trigger";
   const sel = document.getElementById("kit");
   meta.kits.forEach(k => { const o = document.createElement("option"); o.value = k; o.textContent = k; sel.appendChild(o); });
   const fc = document.getElementById("filter");
@@ -24,7 +43,13 @@ async function init() {
   const files = await api("/api/files", { method: "GET" });
   const fs = document.getElementById("file");
   files.files.forEach(f => { const o = document.createElement("option"); o.value = f; o.textContent = f; fs.appendChild(o); });
-  if (files.files.length) { fs.selectedIndex = 0; }
+  fs.replaceChildren(...files.files.map(f => new Option(f, f)));
+  if (!files.files.length) fs.add(new Option("No audio files yet — upload a take", ""));
+  initialized = true;
+  syncControls();
+  const connection = document.getElementById("connection");
+  connection.textContent = "Local engine connected"; connection.dataset.ready = "true";
+  status(files.files.length ? "Ready when you are." : "Upload a recording to get started.");
 }
 let lastNotes = [];
 let selIndex = -1;
@@ -59,9 +84,9 @@ function drawRoll() {
   const notes = lastNotes, filt = document.getElementById("filter").value;
   const shown = filt ? notes.filter(n => n.type === filt) : notes;
   document.getElementById("summary").textContent = `${shown.length} / ${notes.length} note events`;
-  document.getElementById("export").disabled = false;
+  syncControls();
   const cvs = document.getElementById("roll");
-  const W = Math.max(300, document.getElementById("rollwrap").clientWidth);
+  const W = Math.max(1, document.getElementById("rollwrap").clientWidth);
   const lanes = laneTypes(notes);
   cvs.width = W; cvs.height = lanes.length * LANE_H + AX_H;
   const ctx = cvs.getContext("2d");
@@ -71,7 +96,9 @@ function drawRoll() {
   const cW = W - LBL_W - 14;
   lastPps = cW / v.dur;
   ctx.font = "12px ui-monospace,Consolas,monospace";
-  const step = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10].find(s => (v.dur / s) <= 22) || 10;
+  const targetStep = v.dur / Math.max(1, Math.floor(cW / 64));
+  const magnitude = 10 ** Math.floor(Math.log10(targetStep));
+  const step = [1, 2, 5, 10].map(s => s * magnitude).find(s => s >= targetStep);
   for (let tt = Math.ceil(v.start / step) * step; tt <= v.start + v.dur + 1e-9; tt += step) {
     const x = LBL_W + (tt - v.start) * lastPps;
     ctx.strokeStyle = "#20252f"; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cvs.height - AX_H); ctx.stroke();
@@ -140,6 +167,7 @@ function zoomBy(factor) {
   drawRoll();
 }
 function onDown(ev) {
+  if (busy || !hasResult) return;
   const hit = noteAt(ev);
   if (!hit) {
     const v = curView(currentShown());
@@ -174,23 +202,29 @@ async function onUp() {
   if (!drag) return;
   const d = drag; drag = null;
   try {
-    if (d.curType !== d.origType) await edit({ action: "reassign", index: d.idx, type: d.curType });
+    if (d.curType !== d.origType && !await edit({ action: "reassign", index: d.idx, type: d.curType })) return;
     if (Math.abs(d.curOnset - d.origOnset) > 0.0001) await edit({ action: "move", index: d.idx, delta_s: d.curOnset - d.origOnset });
     else selectNote(d.idx);
   } catch (e) { document.getElementById("status").textContent = "error: " + e.message; }
 }
-function renderNotes(notes) { lastNotes = notes; drawRoll(); updatePanel(); }
+function renderNotes(notes) {
+  lastNotes = notes;
+  document.getElementById("results").style.display = "";
+  document.getElementById("empty").style.display = "none";
+  drawRoll(); updatePanel();
+}
 async function edit(body) {
-  const st = document.getElementById("status"); st.textContent = "editing…";
+  setBusy(true); status("Updating selected hit…", "busy");
   try {
     const j = await api("/api/edit", { method: "POST", body: JSON.stringify(body) });
     if (selIndex >= j.notes.length) selIndex = j.notes.length - 1;
-    renderNotes(j.notes); st.textContent = "done";
-  } catch (e) { st.textContent = "error: " + e.message; }
+    renderNotes(j.notes); status("Hit updated."); return true;
+  } catch (e) { status("Could not update hit: " + e.message, "error"); return false; }
+  finally { setBusy(false); }
 }
 async function run() {
-  const btn = document.getElementById("run"); btn.disabled = true;
-  const st = document.getElementById("status"); st.textContent = "processing…";
+  if (busy || !document.getElementById("file").value) return;
+  setBusy(true); status("Transcribing audio… this may take a moment.", "busy");
   try {
     const body = { file: document.getElementById("file").value,
                    kit: document.getElementById("kit").value,
@@ -200,41 +234,36 @@ async function run() {
                    velocity_smooth: document.getElementById("velsmooth").checked,
                    protect_grooves: document.getElementById("protgrooves").checked };
     const j = await api("/api/run", { method: "POST", body: JSON.stringify(body) });
+    hasResult = true; selIndex = -1; view = null; drag = null; pan = null;
     renderNotes(j.notes);
-    document.getElementById("results").style.display = "";
-    st.textContent = "done";
-  } catch (e) { st.textContent = "error: " + e.message; }
-  finally { btn.disabled = false; }
+    status(j.notes.length ? `${j.notes.length} hits ready. Select a hit to refine it.` : "No hits detected. Try a different engine or recording.");
+  } catch (e) { status("Transcription failed: " + e.message, "error"); }
+  finally { setBusy(false); }
 }
 async function exportMidi() {
-  const btn = document.getElementById("export"); btn.disabled = true;
-  const st = document.getElementById("status"); st.textContent = "exporting…";
+  if (busy || !hasResult) return;
+  setBusy(true); status("Writing MIDI…", "busy");
   try {
-    const body = { file: document.getElementById("file").value,
-                   kit: document.getElementById("kit").value,
-                   method: document.getElementById("method").value };
+    const body = { file: document.getElementById("file").value, kit: document.getElementById("kit").value, method: document.getElementById("method").value };
     const j = await api("/api/export", { method: "POST", body: JSON.stringify(body) });
-    st.textContent = j.ok ? "exported → " + j.path : j.error;
-  } catch (e) { st.textContent = "error: " + e.message; }
-  finally { btn.disabled = false; }
+    status(j.ok ? "Saved on the engine computer: " + j.path : j.error, j.ok ? "ready" : "error");
+  } catch (e) { status("Export failed: " + e.message, "error"); }
+  finally { setBusy(false); }
 }
 async function upload() {
   const f = document.getElementById("upfile").files[0];
-  if (!f) return;
-  const st = document.getElementById("status"); st.textContent = "uploading " + f.name + "…";
-  const r = await fetch("/api/upload?name=" + encodeURIComponent(f.name), {
-    method: "POST",
-    headers: { "X-Auth-Token": token, "Content-Type": "application/octet-stream" },
-    body: f
-  });
-  const j = await r.json();
-  if (!r.ok) { st.textContent = "upload error: " + (j.error || r.status); return; }
-  st.textContent = "uploaded → " + j.file;
-  const files = await api("/api/files", { method: "GET" });
-  const fs = document.getElementById("file");
-  fs.innerHTML = "";
-  files.files.forEach(nm => { const o = document.createElement("option"); o.value = nm; o.textContent = nm; fs.appendChild(o); });
-  if (files.files.length) { fs.value = j.file; }
+  if (!f || busy) { if (!f) status("Choose a recording to upload first."); return; }
+  setBusy(true); status("Uploading " + f.name + "…", "busy");
+  try {
+    const r = await fetch("/api/upload?name=" + encodeURIComponent(f.name), { method: "POST", headers: { "X-Auth-Token": token, "Content-Type": "application/octet-stream" }, body: f });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    const files = await api("/api/files", { method: "GET" });
+    const fs = document.getElementById("file");
+    fs.replaceChildren(...files.files.map(name => new Option(name, name))); fs.value = j.file;
+    status("Uploaded " + j.file + ". Ready to transcribe.");
+  } catch (e) { status("Upload failed: " + e.message, "error"); }
+  finally { setBusy(false); }
 }
 document.getElementById("run").onclick = run;
 document.getElementById("export").onclick = exportMidi;
@@ -253,5 +282,9 @@ document.getElementById("mvL").onclick = () => { if (selIndex >= 0) edit({ actio
 document.getElementById("mvR").onclick = () => { if (selIndex >= 0) edit({ action: "move", index: selIndex, delta_s: 0.01 }); };
 document.getElementById("seldel").onclick = () => { if (selIndex >= 0) edit({ action: "delete", index: selIndex }); };
 document.getElementById("seltype").onchange = () => { if (selIndex >= 0) edit({ action: "reassign", index: selIndex, type: document.getElementById("seltype").value }); };
-window.addEventListener("resize", () => { if (lastNotes.length) drawRoll(); });
-init();
+window.addEventListener("resize", () => { if (hasResult) drawRoll(); });
+document.getElementById("file").onchange = syncControls;
+init().catch(e => {
+  document.getElementById("connection").textContent = "Engine unavailable";
+  status("Connection failed: " + e.message + ". Check the token in this page URL, then reload.", "error");
+});

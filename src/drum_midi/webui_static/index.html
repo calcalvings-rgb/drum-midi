@@ -1,60 +1,46 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Drum → MIDI</title>
-<link rel="stylesheet" href="/static/style.css"></head><body>
-<h1>Drum → MIDI</h1>
-<p class="sub">Trigger backend · remote control</p>
-
-<div class="card">
-  <label for="file">Audio file</label>
-  <select id="file"></select>
-  <div style="margin-top:10px;display:flex;gap:8px">
-    <input type="file" id="upfile" accept="audio/*" style="flex:1">
-    <button id="upbtn" class="secondary">Upload</button>
-  </div>
-  <label for="kit">Kit preset</label>
-  <select id="kit"></select>
-  <label for="method">Transcribe method</label>
-  <select id="method">
-    <option value="trigger">trigger (global-onset+classifier)</option>
-    <option value="bands">bands (band-split flux)</option>
-    <option value="adtof">adtof (neural, needs torch)</option>
-    <option value="strum">strum (neural, needs torch)</option>
-  </select>
-  <div style="margin-top:10px;font-size:13px">
-    <label><input type="checkbox" id="groove" checked> groove cleanup (collapse dup, tempo window)</label>
-    <label style="margin-left:14px"><input type="checkbox" id="flatten"> flatten cymbal → cymbal</label>
-    <label style="margin-left:14px"><input type="checkbox" id="velsmooth"> smooth velocity → 50-120</label>
-    <label style="margin-left:14px"><input type="checkbox" id="protgrooves"> protect steady grooves</label>
-  </div>
-  <button id="run">Run</button>
-  <button id="export" class="secondary" disabled>Export MIDI</button>
-  <div id="status"></div>
-</div>
-
-<div class="card" id="results" style="display:none">
-  <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
-    <div id="summary" style="font-weight:600"></div>
-    <select id="filter"><option value="">all types</option></select>
-    <span style="color:#9aa2ae;font-size:12px">zoom</span>
-    <button id="zout" class="rowbtn">−</button>
-    <button id="zfit" class="rowbtn">fit</button>
-    <button id="zin" class="rowbtn">+</button>
-  </div>
-  <div id="legend" class="legend"></div>
-  <div id="rollwrap" style="position:relative;overflow-x:auto;border:1px solid #262b36;border-radius:8px">
-    <canvas id="roll"></canvas>
-  </div>
-  <div id="sel" style="display:none;margin-top:10px;padding:10px;background:#0f1115;border:1px solid #262b36;border-radius:8px">
-    <span style="color:#9aa2ae;font-size:12px">selected →</span>
-    <span id="selinfo" style="font-weight:600;margin:0 8px"></span>
-    <select id="seltype"></select>
-    <button id="mvL" class="rowbtn">−10ms</button>
-    <button id="mvR" class="rowbtn">+10ms</button>
-    <button id="seldel" class="rowbtn del">del</button>
-  </div>
-</div>
-
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><meta name="referrer" content="no-referrer">
+<title>GrooveForge — Audio to MIDI</title>
+<link rel="icon" href="data:,"><link rel="stylesheet" href="/static/style.css">
 <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#workspace">Skip to workspace</a>
+<header class="app-header"><div class="brand"><span class="brand-mark" aria-hidden="true">▥</span><span>Groove<span class="brand-light">Forge</span></span><span class="edition">AUDIO TO MIDI</span></div><span class="connection" id="connection">Connecting…</span></header>
+<main id="workspace">
+<div class="page-heading"><div><p class="eyebrow">YOUR TAKE. YOUR GROOVE.</p><h1>From real drums.<br>To your next pattern.</h1><p class="muted">Transcribe a take, refine the hits, and bring it into FL Studio.</p></div><span class="workflow-label">01 SOURCE <span>→</span> 02 REFINE <span>→</span> 03 EXPORT</span></div>
+<div class="workspace-grid">
+<section class="source-panel panel" aria-labelledby="source-heading">
+<div class="section-heading"><span class="step">01</span><div><h2 id="source-heading">Source & settings</h2><p>Start with your drum audio.</p></div></div>
+<div class="field"><label for="file">Audio file <span>ON THIS COMPUTER</span></label><select id="file" disabled><option value="">Loading files…</option></select></div>
+<div class="upload-box"><label for="upfile">Add a recording</label><p>Upload audio from this device.</p><input type="file" id="upfile" accept=".wav,.wave,.mp3,.flac,.ogg,.m4a,audio/*"><button id="upbtn" class="secondary" disabled>Upload audio <span aria-hidden="true">↑</span></button></div>
+<div class="field"><label for="method">Transcription engine</label><select id="method" disabled><option value="trigger">Trigger</option></select></div>
+<div class="field"><label for="kit">Output kit</label><select id="kit" disabled></select></div>
+<fieldset class="cleanup"><legend>Groove cleanup</legend>
+<label class="toggle-row" for="groove"><span><strong>Clean up duplicate hits</strong><small>Collapse repeats in the tempo window.</small></span><input type="checkbox" id="groove" checked></label>
+<label class="toggle-row" for="flatten"><span><strong>Flatten cymbals</strong><small>Group cymbal hits into one voice.</small></span><input type="checkbox" id="flatten"></label>
+<label class="toggle-row" for="velsmooth"><span><strong>Smooth velocity</strong><small>Keep dynamics in the 50–120 range.</small></span><input type="checkbox" id="velsmooth"></label>
+<label class="toggle-row" for="protgrooves"><span><strong>Protect steady grooves</strong><small>Preserve quieter repeated hits.</small></span><input type="checkbox" id="protgrooves"></label>
+</fieldset>
+<button id="run" class="primary" disabled>Transcribe audio <span aria-hidden="true">→</span></button>
+<div id="status" role="status" aria-live="polite">Connecting to the local engine…</div>
+</section>
+<section class="editor-panel panel" aria-labelledby="editor-heading">
+<div class="editor-header"><div class="section-heading"><span class="step">02</span><div><h2 id="editor-heading">Groove editor</h2><p>Small adjustments. Your original feel.</p></div></div><button id="export" class="secondary" disabled>Export MIDI <span aria-hidden="true">↗</span></button></div>
+<div id="empty" class="empty-state"><div class="empty-roll" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="eyebrow">ROOM FOR YOUR RHYTHM</p><h3>Your groove starts here.</h3><p>Choose an audio file and transcribe it.<br>Your drum hits will appear on the timeline.</p><span class="format-tag">AUDIO → EDITABLE MIDI</span></div>
+<div id="results" style="display:none">
+<div class="editor-toolbar"><span id="summary" class="mono"></span><div class="editor-tools"><label class="sr-only" for="filter">Filter drum type</label><select id="filter"><option value="">All instruments</option></select><div class="zoom-controls" role="group" aria-label="Timeline zoom"><button id="zout" aria-label="Zoom out">−</button><button id="zfit">Fit</button><button id="zin" aria-label="Zoom in">+</button></div></div></div>
+<div id="rollwrap"><canvas id="roll" tabindex="0" aria-label="Drum timeline. Select a hit to edit it using the controls below."></canvas></div>
+<div id="legend" class="legend" aria-label="Instrument colors"></div>
+<div id="sel" class="selection-panel" style="display:none"><span class="eyebrow">SELECTED HIT</span><span id="selinfo" class="mono"></span><div class="selection-actions"><label class="sr-only" for="seltype">Reassign selected hit</label><select id="seltype"></select><button id="mvL" class="secondary">−10ms</button><button id="mvR" class="secondary">+10ms</button><button id="seldel" class="danger">Delete</button></div></div>
+<p class="editor-help">Drag a hit to adjust timing or change its lane. Scroll to zoom; drag empty space to pan.</p>
+</div>
+<div class="editor-footer"><span class="status-dot" aria-hidden="true"></span>Keep the groove. Refine the details.<span class="mono">.MID</span></div>
+</section></div>
+<footer class="page-footer"><span>GrooveForge</span><span>Local processing. No cloud upload.</span></footer>
+</main>
+<noscript><p class="noscript">JavaScript is required to transcribe and edit drum audio.</p></noscript>
 </body></html>
