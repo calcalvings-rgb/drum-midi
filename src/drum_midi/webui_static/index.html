@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Drum → MIDI</title>
+<link rel="stylesheet" href="/static/style.css"></head><body>
+<h1>Drum → MIDI</h1>
+<p class="sub">Trigger backend · remote control</p>
+
+<div class="card">
+  <label for="file">Audio file</label>
+  <select id="file"></select>
+  <div style="margin-top:10px;display:flex;gap:8px">
+    <input type="file" id="upfile" accept="audio/*" style="flex:1">
+    <button id="upbtn" class="secondary">Upload</button>
+  </div>
+  <label for="kit">Kit preset</label>
+  <select id="kit"></select>
+  <label for="method">Transcribe method</label>
+  <select id="method">
+    <option value="trigger">trigger (global-onset+classifier)</option>
+    <option value="bands">bands (band-split flux)</option>
+    <option value="adtof">adtof (neural, needs torch)</option>
+    <option value="strum">strum (neural, needs torch)</option>
+  </select>
+  <div style="margin-top:10px;font-size:13px">
+    <label><input type="checkbox" id="groove" checked> groove cleanup (collapse dup, tempo window)</label>
+    <label style="margin-left:14px"><input type="checkbox" id="flatten"> flatten cymbal → cymbal</label>
+    <label style="margin-left:14px"><input type="checkbox" id="velsmooth"> smooth velocity → 50-120</label>
+    <label style="margin-left:14px"><input type="checkbox" id="protgrooves"> protect steady grooves</label>
+  </div>
+  <button id="run">Run</button>
+  <button id="export" class="secondary" disabled>Export MIDI</button>
+  <div id="status"></div>
+</div>
+
+<div class="card" id="results" style="display:none">
+  <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+    <div id="summary" style="font-weight:600"></div>
+    <select id="filter"><option value="">all types</option></select>
+    <span style="color:#9aa2ae;font-size:12px">zoom</span>
+    <button id="zout" class="rowbtn">−</button>
+    <button id="zfit" class="rowbtn">fit</button>
+    <button id="zin" class="rowbtn">+</button>
+  </div>
+  <div id="legend" class="legend"></div>
+  <div id="rollwrap" style="position:relative;overflow-x:auto;border:1px solid #262b36;border-radius:8px">
+    <canvas id="roll"></canvas>
+  </div>
+  <div id="sel" style="display:none;margin-top:10px;padding:10px;background:#0f1115;border:1px solid #262b36;border-radius:8px">
+    <span style="color:#9aa2ae;font-size:12px">selected →</span>
+    <span id="selinfo" style="font-weight:600;margin:0 8px"></span>
+    <select id="seltype"></select>
+    <button id="mvL" class="rowbtn">−10ms</button>
+    <button id="mvR" class="rowbtn">+10ms</button>
+    <button id="seldel" class="rowbtn del">del</button>
+  </div>
+</div>
+
+<script type="module" src="/static/app.js"></script>
+</body></html>

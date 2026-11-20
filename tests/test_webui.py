@@ -147,3 +147,47 @@ def test_upload_rejects_bad_extension(tmp_path):
     h.path = "/api/upload?name=evil.exe"
     obj, code = h._upload()
     assert code == 400
+
+@pytest.mark.parametrize("name,ctype", [("index.html", "text/html"), ("app.js", "text/javascript"), ("style.css", "text/css")])
+def test_static_serves_asset(tmp_path, name, ctype):
+    h = _handler()
+    h.server.static_dir = tmp_path
+    h.headers = {}
+    (tmp_path / name).write_bytes(b"asset content")
+    h.path = "/" if name == "index.html" else "/static/" + name
+    h._send = lambda code, body, ctype="application/json": (code, body, ctype)
+    code, body, content_type = h.do_GET()
+    assert code == 200
+    assert body == b"asset content"
+    assert content_type.startswith(ctype)
+
+
+@pytest.mark.parametrize("path", [
+    "/static/../outside.js", "/static/%2e%2e/outside.js",
+    "/static/..%5coutside.js", "/static/%2fetc/passwd",
+    "/static/evil.exe", "/static/missing.js", "/static/app.js/extra",
+    "/static/%00app.js", "/static/", "/static/../webui_static-other/app.js",
+])
+def test_static_rejects_unsafe_or_unknown_assets(tmp_path, path):
+    h = _handler()
+    h.server.static_dir = tmp_path
+    h.headers = {}
+    (tmp_path / "evil.exe").write_bytes(b"private")
+    (tmp_path.parent / "outside.js").write_bytes(b"private")
+    h.path = path
+    h._send = lambda code, body, ctype="application/json": (code, body, ctype)
+    responses = []
+    h._send = lambda code, body, ctype="application/json": responses.append((code, body))
+    h.do_GET()
+    assert responses[0][0] == 404
+
+
+def test_api_still_requires_auth_with_public_assets():
+    h = _handler()
+    h.path = "/api/meta"
+    h.headers = {"X-Auth-Token": "wrong"}
+    h._send = lambda code, body, ctype="application/json": (code, body, ctype)
+    responses = []
+    h._send = lambda code, body, ctype="application/json": responses.append((code, body))
+    h.do_GET()
+    assert responses[0][0] == 403
