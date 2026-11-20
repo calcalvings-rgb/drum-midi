@@ -106,8 +106,10 @@ def classify_event(centroid_hz: float, duration: float, config: dict) -> str:
     if centroid_hz < k_kick:
         return "floor" if duration >= tom_dur else "kick"
     if centroid_hz < cfg.get("tom_max_hz", 380.0):
-        # floor (low tom) vs rack (higher tom)
-        return "floor" if centroid_hz < tom_lo else "rack2"
+        # rack2 (higher-pitched rack tom) has the LOWER centroid in this feature
+        # space; floor (bigger, lower pitch) reads higher. Verified on GT
+        # tes2.mid: rack2 114-218 Hz, floor 225-367 Hz.
+        return "rack2" if centroid_hz < tom_lo else "floor"
     if centroid_hz < k_snare:
         return "snare"
     return "crash1" if duration >= crash_dur else "hat_closed"

@@ -62,9 +62,9 @@ def test_band_types_valid():
 def test_classify_event_boundaries():
     # low centroid (Hz), short -> kick
     assert classify_event(60.0, 0.05, {}) == "kick"
-    # tom band: below tom_lo -> floor, above -> rack2
-    assert classify_event(150.0, 0.05, {}) == "floor"
-    assert classify_event(300.0, 0.05, {}) == "rack2"
+    # tom band: below tom_lo -> rack2, above -> floor (verified on GT tes2.mid)
+    assert classify_event(150.0, 0.05, {}) == "rack2"
+    assert classify_event(300.0, 0.05, {}) == "floor"
     # snare band
     assert classify_event(900.0, 0.05, {}) == "snare"
     # high centroid, short -> hat; long -> crash
