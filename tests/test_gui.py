@@ -11,14 +11,16 @@ from drum_midi.gui import DrumMidiApp
 
 
 @pytest.fixture
-def root():
-    r = tk.Tk()
-    r.withdraw()
-    yield r
-    try:
-        r.destroy()
-    except Exception:
-        pass
+def root(capfd):
+    # Win32/Tcl 9 theme sourcing fails under fd capture but works with native handles.
+    with capfd.disabled():
+        r = tk.Tk()
+        r.withdraw()
+        yield r
+        try:
+            r.destroy()
+        except Exception:
+            pass
 
 
 def test_gui_builds_and_defaults(root):

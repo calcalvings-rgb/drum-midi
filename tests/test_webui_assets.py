@@ -21,10 +21,11 @@ def test_frontend_has_accessible_workspace_and_external_module():
     assert any(tag == "main" for tag, _ in elements)
     assert any(tag == "script" and a.get("type") == "module" and a.get("src") == "/static/app.js" for tag, a in elements)
     assert any(a.get("id") == "status" and a.get("role") == "status" for _, a in elements)
-    assert any(a.get("id") == "roll" and a.get("tabindex") == "0" for _, a in elements)
+    assert any(a.get("id") == "mount" for _, a in elements)
+    assert any(a.get("id") == "stage" and a.get("aria-label") == "Piano roll" for _, a in elements)
     ids = [a["id"] for _, a in elements if "id" in a]
     assert len(ids) == len(set(ids))
-    for required in ["file", "upfile", "upbtn", "kit", "method", "groove", "flatten", "velsmooth", "protgrooves", "run", "export", "results", "summary", "filter", "zout", "zfit", "zin", "legend", "rollwrap", "roll", "sel", "selinfo", "seltype", "mvL", "mvR", "seldel"]:
+    for required in ["file", "wav", "midi", "kit", "method", "groove", "flatten", "velsmooth", "protgrooves", "run", "export", "summary", "filter", "zoom-out", "fit", "zoom-in", "mount", "stage", "undo", "redo", "velocity", "drop-zone", "drop-files"]:
         assert required in ids
     for tag, a in elements:
         if tag in {"select", "input"}:

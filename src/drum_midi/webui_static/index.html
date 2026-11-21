@@ -1,52 +1,79 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <meta name="referrer" content="no-referrer">
-  <title>GrooveForge | Drum audio to MIDI</title>
-  <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/static/style.css">
-  <script type="module" src="/static/app.js"></script>
-</head>
-<body>
-  <a class="skip-link" href="#workspace">Skip to workspace</a>
-  <header class="app-header">
-    <div><h1>GrooveForge</h1><p>Drum audio to MIDI</p></div>
-    <span id="connection" class="connection" role="status">Connecting to engine…</span>
-  </header>
-  <main id="workspace">
-    <section class="source-panel panel" aria-labelledby="source-heading">
-      <h2 id="source-heading">Audio</h2>
-      <div class="source-fields">
-        <div class="field"><label for="file">File on engine computer</label><select id="file" disabled><option value="">Loading recordings…</option></select></div>
-        <div class="upload-box"><label for="upfile">Upload from this device</label><input type="file" id="upfile" accept=".wav,.wave,.mp3,.flac,.ogg,.m4a,audio/*"><button id="upbtn" class="secondary" disabled>Upload audio</button></div>
-        <div class="field"><label for="method">Transcription engine</label><select id="method" disabled><option value="trigger">Trigger</option></select></div>
-        <div class="field"><label for="kit">MIDI output kit</label><select id="kit" disabled></select></div>
-      </div>
-      <fieldset class="cleanup"><legend>Cleanup</legend>
-        <label class="toggle-row" for="groove"><span><strong>Remove duplicate hits</strong><small>Merge repeats in the tempo window.</small></span><input type="checkbox" id="groove" checked></label>
-        <label class="toggle-row" for="flatten"><span><strong>Group cymbals</strong><small>Use one cymbal voice.</small></span><input type="checkbox" id="flatten"></label>
-        <label class="toggle-row" for="velsmooth"><span><strong>Smooth velocity</strong><small>Remap dynamics to 50-120.</small></span><input type="checkbox" id="velsmooth"></label>
-        <label class="toggle-row" for="protgrooves"><span><strong>Protect steady grooves</strong><small>Preserve quiet repeated hits.</small></span><input type="checkbox" id="protgrooves"></label>
-      </fieldset>
-      <button id="run" class="primary" disabled>Transcribe audio</button>
-      <p id="status" role="status" aria-live="polite">Connecting to the engine…</p>
-    </section>
-    <section class="editor-panel panel" aria-labelledby="editor-heading">
-      <header class="editor-header"><div><h2 id="editor-heading">Notes</h2><p id="take-name">No take loaded</p></div><button id="export" class="secondary" disabled>Export MIDI</button></header>
-      <div id="empty" class="empty-state"><h3 id="empty-heading">No drum hits yet</h3><p id="empty-description">Select a recording and choose Transcribe audio.<br>Then move, reassign or delete hits before export.</p></div>
-      <div id="results" style="display:none">
-        <div class="editor-toolbar"><span id="summary" class="mono" role="status"></span><div class="editor-tools"><label for="filter">Show</label><select id="filter"><option value="">All instruments</option></select><div class="zoom-controls" role="group" aria-label="Timeline zoom"><button id="zout" aria-label="Zoom out">−</button><button id="zfit">Fit</button><button id="zin" aria-label="Zoom in">+</button></div></div></div>
-        <div id="rollwrap"><canvas id="roll" tabindex="0" aria-label="Drum timeline. Use Up and Down to select hits, Left and Right to move by 10 milliseconds, Delete to remove, and Escape to deselect."></canvas></div>
-        <div id="legend" class="legend" aria-label="Instrument colors"></div>
-        <div id="sel" class="selection-panel" style="display:none"><h3>Selected hit</h3><span id="selinfo" class="mono" role="status"></span><div class="selection-actions"><label for="seltype">Instrument</label><select id="seltype"></select><button id="mvL" class="secondary">−10ms</button><button id="mvR" class="secondary">+10ms</button><button id="seldel" class="danger">Delete hit</button></div></div>
-        <p class="editor-help">Drag hits to change timing or lane. Scroll to zoom; drag empty space to pan.<br>Keyboard: Up/Down selects a hit, Left/Right moves it by 10ms, Delete removes it.</p>
-      </div>
-      <footer class="editor-footer">MIDI exports are saved beside the recording on the engine computer.</footer>
-    </section>
-  </main>
-  <noscript><p class="noscript">Enable JavaScript to transcribe and edit drum audio.</p></noscript>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><title>GrooveForge | Drum audio to MIDI</title><link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsui.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsui-gray.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiBeatlines/gsuiBeatlines.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiBlocksManager/gsuiBlocksManager.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiDropdown/gsuiDropdown.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiKeys/gsuiKeys.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiPianoroll/gsuiPianoroll-block.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiPianoroll/gsuiPianoroll.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiPropSelect/gsuiPropSelect.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiScrollShadow/gsuiScrollShadow.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiSlider/gsuiSlider.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiSliderGroup/gsuiSliderGroup.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiStepSelect/gsuiStepSelect.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiTimeline/gsuiTimeline.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiTimewindow/gsuiTimewindow.css">
+<link rel="stylesheet" href="/static/vendor/gs-ui-components/gsuiToggle/gsuiToggle.css">
+<link rel="stylesheet" href="/static/style.css"></head>
+<body data-skin="gray">
+<a class="skip" href="#editor">Skip to notes</a>
+<header><div><h1>GrooveForge</h1><p>Drum audio to editable MIDI.</p></div><div class="filebar"><label for="midi">Open drum MIDI</label><input id="midi" type="file" accept=".mid,.midi,audio/midi"><button id="export" class="primary">Download MIDI</button></div></header>
+<main>
+<section id="drop-zone" class="drop-zone" aria-labelledby="drop-title" aria-describedby="drop-help" aria-busy="false" data-dragging="false">
+<div><h2 id="drop-title"><label for="drop-files">Drop MIDI or WAV here</label></h2><p id="drop-help">One MIDI for notes, one WAV for the background, or drop both together.</p><p id="drop-status" role="status" aria-live="polite">Choose files or drag them from your computer.</p></div>
+<button id="drop-browse" disabled>Choose files</button>
+<input id="drop-files" type="file" accept=".mid,.midi,.wav,.wave" multiple hidden disabled aria-labelledby="drop-title">
+</section>
+<section class="processing" aria-labelledby="processing-title">
+<h2 id="processing-title">Transcribe audio</h2>
+<div class="processing-row"><label for="file">Audio on engine</label><select id="file" disabled><option value="">Choose engine audio or load a local WAV</option></select><button id="refresh-files" disabled>Refresh files</button><button id="run" class="primary" disabled>Transcribe audio</button></div>
+<p id="audio-source" role="status">Load a local WAV or choose a file on the engine.</p>
+<details><summary>Engine and cleanup options</summary><div class="processing-options">
+<label for="method">Engine</label><select id="method" disabled></select><label for="preset">Threshold preset</label><select id="preset" disabled></select>
+<label for="groove"><input id="groove" type="checkbox" checked> Remove duplicate hits</label><label for="flatten"><input id="flatten" type="checkbox"> Group cymbals</label><label for="velsmooth"><input id="velsmooth" type="checkbox"> Smooth velocity (50-120)</label><label for="protgrooves"><input id="protgrooves" type="checkbox"> Protect steady grooves</label></div></details>
+<p class="help">Local WAV references are decoded in this browser. Transcription uploads them to this local/LAN engine, never a cloud service. Source audio is not overwritten.</p>
+</section>
+<div class="toolbar" aria-label="Editing controls"><button id="undo" disabled>Undo <kbd>Ctrl Z</kbd></button><button id="redo" disabled>Redo <kbd>Ctrl Y</kbd></button><label for="snap">Snap</label><select id="snap"><option value="off">Off</option><option value="1/4">1/4 note</option><option value="1/8">1/8 note</option><option value="1/16" selected>1/16 note</option><option value="1/32">1/32 note</option><option value="1/64">1/64 note</option></select><label for="bpm">BPM</label><input id="bpm" type="number" min="20" max="400" step="any" value="120"><label for="kit">Output kit</label><select id="kit" disabled></select><button id="quantize">Quantize selected</button><button id="select-all">Select all</button><button id="duplicate">Duplicate <kbd>Ctrl B</kbd></button><button id="delete">Delete</button></div>
+<div class="wavebar"><label for="wav">Reference WAV</label><input id="wav" type="file" accept=".wav,.wave,audio/wav"><button id="clear-wave" disabled>Clear waveform</button><span id="wave-info" role="status">No waveform loaded. Audio starts at 0 seconds / beat 1.</span></div>
+<div class="context"><h2 id="take-name">Empty editor</h2><span id="summary" role="status">0 hits</span><label for="filter">Show notes</label><select id="filter"><option value="">All instruments</option></select><div class="zoom"><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button></div></div>
+<section id="stage" aria-label="Piano roll"><div id="mount"></div></section>
+<div class="selected-controls"><label for="velocity">Selected velocity</label><input id="velocity" type="range" min="1" max="127" value="102"><output id="velocity-value" for="velocity">102</output><span id="selection">No hits selected</span></div>
+<p class="help">Click to draw; drag to move; drag a note edge to resize. Shift + drag selects an area. Right-click deletes. Ctrl A selects all; Ctrl B duplicates; Ctrl Z undoes; Ctrl Y or Ctrl Shift Z redoes. The lower lane edits velocity.</p>
+<p class="help">Snap moves in grid-sized steps and preserves an imported hit's offset. Quantize aligns selected hits to the grid. Edits stay local until you export. MIDI input uses GM pitches. Downloads use the selected output kit and BPM on drum channel 10. Note events only; variable tempo/meter maps are not supported.</p>
+<p id="status" role="status" aria-live="polite">Starting editor…</p>
+<footer><span>GrooveForge application code: AGPL-3.0.</span><a href="/static/vendor/gs-ui-components/LICENSE" target="_blank" rel="noopener">License</a><a href="/source.zip">Download source</a></footer>
+</main>
+<script src="/static/vendor/gs-utils/gs-utils.js"></script>
+<script src="/static/vendor/gs-utils/gs-utils-jquery.js"></script>
+<script src="/static/vendor/gs-utils/gs-utils-func.js"></script>
+<script src="/static/vendor/gs-utils/gs-utils-json.js"></script>
+<script src="/static/vendor/gs-utils/gs-utils-math.js"></script>
+<script src="/static/vendor/gs-utils/gs-utils-files.js"></script>
+<script src="/static/vendor/gs-utils/gs-utils-models.js"></script>
+<script src="/static/vendor/gs-ui-components/gsui-constantes.js"></script>
+<script src="/static/vendor/gs-ui-components/gsui-texts.js"></script>
+<script src="/static/vendor/gs-ui-components/gsui0ne/gsui0ne.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiToggle/gsuiToggle.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiBeatlines/gsuiBeatlines.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiDropdown/gsuiDropdown.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiPropSelect/gsuiPropSelect.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiSlider/gsuiSlider.html.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiSlider/gsuiSlider.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiStepSelect/gsuiStepSelect.html.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiStepSelect/gsuiStepSelect.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiScrollShadow/gsuiScrollShadow.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiTimeline/gsuiTimeline.html.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiTimeline/gsuiTimeline.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiSliderGroup/gsuiSliderGroup.html.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiSliderGroup/gsuiSliderGroup.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiKeys/gsuiKeys.html.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiKeys/gsuiKeys.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiTimewindow/gsuiTimewindow.html.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiTimewindow/gsuiTimewindow.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiBlocksManager/gsuiBlocksManager.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiPianoroll/gsuiPianoroll.html.js"></script>
+<script src="/static/vendor/gs-ui-components/gsuiPianoroll/gsuiPianoroll.js"></script>
+<script type="module" src="/static/app.js"></script>
+</body></html>
