@@ -4,10 +4,10 @@
 
 | method | model | requires | notes |
 |---|---|---|---|
-| `trigger` | heuristic (flux + knee + centroid) | numpy/scipy | default; onset recall 0.84 @ tes2, type accuracy 86% when onset correct |
+| `trigger` | heuristic (flux + knee + centroid) | numpy/scipy | default web engine; local calibration results are fixture-specific, not a general accuracy guarantee |
 | `bands` | heuristic band-split | numpy/scipy | lightweight, coarse on full mix |
-| `dettato` | dettato (full GM, 11+ pitch) | torch + librosa + pretty_midi | maps straight to kit; needs source ≥40kHz; GPU-capable |
-| `strum` | STRUM V14 + phase3 MC head | torch + torchaudio, `STRUM_ROOT` | best for dense genres (overlap/cymbal) |
+| `dettato` | dettato (full GM, 11+ pitch) | torch + librosa + pretty_midi | normalized to canonical drum events before web kit export; needs source ≥40kHz; GPU-capable |
+| `strum` | STRUM V14 + phase3 MC head | torch + torchaudio, `STRUM_ROOT` | optional dense/overlapping-hit backend; compare against your own recordings |
 | `adtof` | ADTOF (5 classes) | torch + librosa + pretty_midi | vendored in repo |
 | `madmom` | madmom | optional `.venv312` package | needs Python 3.12 |
 
@@ -26,7 +26,9 @@
 | madmom | `madmom` | Python 3.12 (`.venv312`) |
 | mp3/other formats | ffmpeg | `ffmpeg` required on PATH |
 
-Env: `.venv` (main 3.14, torch/Demucs/ADTOF), `.venv311` (3.11 TF/basic-pitch), `.venv312` (3.12 madmom). **Total ~2.9GB.**
+Local development has used `.venv`, `.venv311` and `.venv312`; these are optional per-backend environments, not bundled installs. Their disk use varies by installed wheels and model caches.
+
+For the web editor/trigger path, install `requirements-web.txt` (NumPy, SciPy, mido). Desktop theme dependencies are in `requirements-gui.txt` (sv-ttk). Install pytest separately for Python tests. Node's built-in runner is needed only for frontend tests. No React/Vite/Node runtime is required by the served UI.
 
 ## Use your own MIDI library
 

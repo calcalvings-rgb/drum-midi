@@ -1,5 +1,9 @@
 # Web editor and transcription engine
 
+![Current GrooveForge web editor](images/web-editor.png)
+
+*Actual UI with synthetic MIDI and WAV. Playback, waveform reference, beat snap and editor controls are visible.*
+
 ```powershell
 .venv\Scripts\python.exe -m pip install -r requirements-web.txt
 .venv\Scripts\python.exe -m drum_midi.webui --host 127.0.0.1 --port 8123 --dir PATH

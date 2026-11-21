@@ -1,5 +1,9 @@
 # Groove Cleanup Roadmap
 
+## Current UI integration
+
+The [GridSound web editor](WEBUI.md) exposes duplicate cleanup, cymbal grouping, velocity smoothing and steady-groove protection. Results can be refined with snap/quantize/undo and checked against a WAV reference with synchronized playback. These editing features do not imply improved transcription accuracy or automatic instrument recovery.
+
 ## Context
 
 ```

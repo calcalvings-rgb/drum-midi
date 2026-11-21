@@ -5,6 +5,11 @@ import pytest
 from drum_midi.source_offer import build_source_archive, is_source_path
 
 
+def test_documented_screenshot_is_distributable_source_material():
+    assert is_source_path('docs/images/web-editor.png')
+    assert not is_source_path('data/private.png')
+
+
 def test_source_archive_contains_only_manifested_application_source(tmp_path):
     source=tmp_path/"src/drum_midi/webui_static/app.js";source.parent.mkdir(parents=True);source.write_text("actual app source")
     (tmp_path/"LICENSE").write_text("license")

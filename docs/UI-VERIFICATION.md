@@ -1,4 +1,6 @@
-# UI verification
+# UI verification (historical initial rework)
+
+This report describes the initial canvas/Sun Valley milestone, not the current GridSound web editor. Its test totals and controls are historical. Current operation is documented in [WEBUI.md](WEBUI.md); subsequent integration and transport evidence is in [EDITOR-INTEGRATION-VERIFICATION.md](EDITOR-INTEGRATION-VERIFICATION.md). Changes were subsequently merged into master and pushed after owner approval.
 
 ## Result
 

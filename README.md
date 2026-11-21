@@ -6,11 +6,28 @@ The reason this exists: **stop drawing piano rolls by hand.** Record real drums 
 
 Desktop app + remote web UI + Python library (`drum_midi`).
 
+[Bahasa Indonesia](README.id.md)
+
+## Web editor
+
+![GrooveForge web editor with drum notes, WAV waveform and playback controls](docs/images/web-editor.png)
+
+*Actual application capture using a synthetic two-bar MIDI take and reference WAV; no licensed audio is shown.*
+
+- Drop MIDI, WAV, or one of each together.
+- Edit with beat snap, group selection, quantize, velocity, undo/redo and kit-aware MIDI download.
+- Play/pause WAV with Space, seek from the ruler, and follow its position with the synchronized playhead.
+- Transcribe locally with the selected backend. No frontend build or cloud service required.
+
+The web editor is not the same as the simpler Sun Valley tkinter interface. Auto-follow scrolling and MIDI sound synthesis are not included.
+
 ## Why
 
 Drum transcription tools output note lists; you still spend hours dragging notes onto a piano roll. GrooveForge closes that gap: a real drum take becomes a playable MIDI pattern in FL, at the song's tempo, with humanized timing/velocity — no manual drawing.
 
 ## Quickstart
+
+Run from the repository root with the existing `.venv`. Set `PATH` below to your audio folder. See [dependencies](docs/BACKENDS.md) for creating an environment; neural backends require separate setup.
 
 ```powershell
 # desktop GUI (Sun Valley dark theme)

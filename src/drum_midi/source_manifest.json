@@ -12,6 +12,8 @@
     "docs/UI-VERIFICATION.md",
     "docs/WEBUI.md",
     "docs/groove-roadmap.md",
+    "docs/images/README.md",
+    "docs/images/web-editor.png",
     "drum_midi.py",
     "requirements-gui.txt",
     "requirements-web.txt",

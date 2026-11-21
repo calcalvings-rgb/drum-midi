@@ -1,6 +1,8 @@
 # Hermes workflow (drums → FL)
 
-This repo is a pure engine (library); FL Studio integration goes through **[flstudio-mcp](https://github.com/calcalvings-rgb/flstudio-mcp)**, orchestrated by Hermes. Pattern used:
+GrooveForge provides a web editor, a desktop UI and a Python engine. Automated FL Studio integration goes through **[flstudio-mcp](https://github.com/calcalvings-rgb/flstudio-mcp)**, orchestrated by Hermes. For manual cleanup, use the [web editor](WEBUI.md), preview the source WAV against the moving playhead, then download kit-mapped MIDI for FL Studio. WAV playback does not synthesize edited MIDI notes.
+
+Automated workflow:
 
 ```
 record real drums (WAV) → transcribe (dettato GPU) → humanize → apply in FL @ song tempo

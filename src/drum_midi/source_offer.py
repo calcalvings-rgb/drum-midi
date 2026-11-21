@@ -19,6 +19,8 @@ def is_source_path(name):
         return False
     if name in TOP_LEVEL:
         return True
+    if path.parts[:2] == ('docs', 'images') and path.suffix == '.png':
+        return True
     if len(path.parts) < 2 or path.parts[0] not in {'src', 'tests', 'docs', 'tools'}:
         return False
     if any(part.startswith('.') or part in {'superpowers', '__pycache__'} for part in path.parts):

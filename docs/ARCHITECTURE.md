@@ -10,12 +10,19 @@ src/drum_midi/
   groove.py          # groove cleanup post-processing (collapse dup, cluster, adaptive window)
   editor.py          # pure note ops: move_note/reassign_note/delete_note (return copy)
   midi_out.py        # write_midi (type 1 multi-track / type 0 single-track ch10 option)
-  audio.py           # parse_audio (wav/pcm, mp3 via decode_mp3)
+  audio.py           # PCM/float WAV, other codecs via ffmpeg
+  web_editor.py      # validated GM beat-state import and kit-aware type-0 MIDI export
+  source_offer.py    # explicit-manifest corresponding-source archive
+  webui_static/      # vanilla ES modules, GridSound, waveform and WAV transport
   maps.py            # DRUM_TYPES (14) + PRESETS (gm, mixwave_sleep_token)
   webui.py           # remote web UI: stdlib ThreadingHTTPServer, token auth, piano-roll editor
   gui.py / drum_midi.py  # desktop tkinter GUI
   _vendor/adtof_pytorch/  # ADTOF model (vendor, lazy-import)
 ```
+
+## Browser editing state
+
+The stdlib server retains token-authenticated transcription and legacy endpoints. The browser owns canonical GM notes in quarter-note beats, bounded delta history and selection. Editor export sends only key/when/duration/gain with BPM and kit; filtering does not remove notes from the exported take. GridSound is pinned and vendored; there is no npm build. WAV stays the audio clock: playhead beat = seconds × BPM / 60. Ruler seeking performs the inverse conversion. See [WEBUI.md](WEBUI.md) for endpoints and limits.
 
 ## Groove cleanup
 
