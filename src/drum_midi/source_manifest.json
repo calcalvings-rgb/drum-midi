@@ -101,6 +101,7 @@
     "tests/import_pair.test.mjs",
     "tests/make_fixtures.py",
     "tests/model.test.mjs",
+    "tests/playback.test.mjs",
     "tests/test_audio.py",
     "tests/test_audio_float.py",
     "tests/test_detect.py",

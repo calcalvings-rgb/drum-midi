@@ -9,7 +9,7 @@ const el = id => document.getElementById(id);
 const drumNames = {35:'Ac. kick',36:'Kick',37:'Side stick',38:'Snare',39:'Clap',40:'E. snare',41:'Low tom',42:'Closed hat',43:'Floor tom',44:'Pedal hat',45:'Low-mid tom',46:'Open hat',47:'Rack tom',48:'Hi-mid tom',49:'Crash',50:'High tom',51:'Ride',52:'China',53:'Ride bell',54:'Tambourine',55:'Splash',56:'Cowbell',57:'Crash 2',59:'Ride 2'};
 let token = '', renderedIds = [], roll, timewindow, waveform, dirty = false, savedSignature = '';
 let midiLoading=false,wavLoading=false,dropLoading=false,processing=false,sourceLoading=false,filesLoading=false;
-let localAudio=null,uploadedAudio=null,sourceEpoch=0,gmMap={};
+let localAudio=null,uploadedAudio=null,sourceEpoch=0,gmMap={},playbackUrl='';
 function signature() {
   return JSON.stringify({bpm:model.bpm,notes:Object.values(model.notes).map(({key,when,duration,gain})=>({key,when,duration,gain})).sort((a,b)=>a.when-b.when||a.key-b.key||a.duration-b.duration||a.gain-b.gain)});
 }
@@ -29,6 +29,15 @@ function focusNotes() {
   });
 }
 function status(message, state='ready') {el('status').textContent=message;el('status').dataset.state=state;}
+function setPlayback(file=null) {
+  const player=el('wav-player');
+  player.pause();player.removeAttribute('src');
+  if(playbackUrl)URL.revokeObjectURL(playbackUrl);
+  playbackUrl=file?URL.createObjectURL(file):'';
+  player.hidden=!file;
+  if(file)player.src=playbackUrl;
+  player.load();
+}
 function syncImportControls() {
   const busy=midiLoading||wavLoading||dropLoading||processing||sourceLoading||filesLoading;
   for(const id of ['midi','wav','drop-browse','drop-files'])el(id).disabled=busy||!token;
@@ -150,6 +159,7 @@ async function importReferenceWav(file,{engine=false,peaks:stagedPeaks=null}={})
   status('Decoding WAV locally and preparing waveform…');
   try {
     const peaks=stagedPeaks||await decodeWav(file);
+    setPlayback(file);
     waveform.setSource(peaks,file.name);waveform.setBpm(model.bpm);
     if(!engine){localAudio=file;uploadedAudio=null;el('file').value='';sourceEpoch++;el('audio-source').textContent=`Local WAV: ${file.name}. Transcription sends it to this engine.`;}
     el('wave-info').textContent=`${file.name} · ${peaks.duration.toFixed(3)}s · display normalized · starts at 0s`;
@@ -189,7 +199,7 @@ async function refreshFiles(prefer='') {
 }
 async function chooseEngineAudio() {
   const name=el('file').value,epoch=++sourceEpoch;
-  localAudio=null;uploadedAudio=null;waveform.clear();
+  localAudio=null;uploadedAudio=null;waveform.clear();setPlayback();
   el('wave-info').textContent='No waveform loaded.';
   el('audio-source').textContent=name?`Engine audio: ${name}`:'Load a local WAV or choose engine audio.';
   if(!name){syncImportControls();return;}
@@ -336,10 +346,12 @@ async function init() {
     dropFeedback(el('status').textContent,el('status').dataset.state);
   };
   el('clear-wave').onclick=()=>{
-    waveform.clear();el('clear-wave').disabled=true;
+    waveform.clear();setPlayback();el('clear-wave').disabled=true;
     el('wave-info').textContent='No waveform loaded. Audio starts at 0 seconds / beat 1.';
     render();status('Waveform reference cleared. MIDI hits were not changed.');
   };
+  el('wav-player').addEventListener('error',()=>{if(playbackUrl)status('Browser cannot play this WAV encoding. Convert to PCM WAV for playback.','error');});
+  window.addEventListener('pagehide',()=>setPlayback());
   el('export').onclick=exportMidi;
   el('filter').onchange=()=>{model.select([]);render();};
   el('file').onchange=chooseEngineAudio;el('refresh-files').onclick=()=>refreshFiles().catch(e=>status(e.message,'error'));

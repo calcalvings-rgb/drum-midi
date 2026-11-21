@@ -7,7 +7,7 @@ The approved editor is now served by the main `drum_midi.webui` entry point, not
 ## Evidence
 
 - Full Python suite after review fixes: 208 passed, 2 skipped, 3 existing librosa short-input warnings.
-- Frontend modules after review fixes: 30 tests passed, including seconds-to-beats conversion, flattened/unknown instrument handling, view-only filtering, delta history, invalid-edit rollback, drop validation and waveform timing.
+- Frontend modules after playback addition: 32 tests passed, including seconds-to-beats conversion, flattened/unknown instrument handling, view-only filtering, delta history, invalid-edit rollback, drop validation and waveform timing.
 - Real main-server browser loop: local synthetic WAV uploaded to the engine, trigger transcription returned 15 hits, editor loaded them at 90 BPM, physical drag snapped a hit by a quarter beat, Ctrl+Z restored it, and MixWave download exported all 15 hits while only 3 were visible through a filter.
 - The actual downloaded file was reopened independently. It is type 0, channel 10; note pitches match the selected kit mapping exactly once, positions/durations match the snapshot within one tick, and tempo is 89.999955 BPM (SMF rounding of 90 BPM).
 - New browser startup has no prototype demo button or `window.spike` hook.
@@ -22,6 +22,10 @@ The approved editor is now served by the main `drum_midi.webui` entry point, not
 
 Raw JSON, actual downloaded MIDI and real synthetic-data screenshots are retained in the task-specific scratch evidence folder. No private or licensed audio was used, no model API was called, and no new model/dependency installation was performed. Screenshot pixels are not claimed to have had a vision-model aesthetic review.
 
+## WAV playback addition
+
+Native HTML audio controls reuse the successfully imported WAV. No new dependency, upload or idle loop. Object URLs are revoked on source replacement/clear; playback pauses before detaching. Source CSP explicitly permits same-origin/blob media. Unit tests cover source lifecycle. A fresh, task-owned headless Edge process exercised actual playback, pause, seek and clear; its result is in scratch playback.json. The shared browser harness stalled blob media, so the direct Edge check was used instead. The test browser was closed after verification.
+
 ## Test-environment finding
 
 `test_dark_theme_applies_sun_valley` failed under pytest fd capture on Win32/Tcl 9 with `couldn't read file ... sv.tcl: No error`. The same file could be opened and sourced in a standalone interpreter, and the exact test passed with `-s`. The Tk fixture now restores native handles during its lifecycle using `capfd.disabled()`. The unchanged runtime theme and full suite then passed. This is recorded rather than hidden or fixed by weakening its assertion.
@@ -32,7 +36,7 @@ Raw JSON, actual downloaded MIDI and real synthetic-data screenshots are retaine
 - Import/export is note-event-only and constant-tempo 4/4. Other tempo/meter maps are rejected; controller/program metadata is not preserved.
 - Editor pitches are canonical GM. Unknown pitches can be downloaded as GM but a non-GM kit rejects unmapped pitches instead of guessing.
 - New UI export is a browser download, not an engine-side overwrite. Legacy API export retains its previous contract for existing clients.
-- Audio references are decoded locally; local audio is sent to the configured local/LAN engine only when transcription is requested. No playback was added.
+- Audio references are decoded locally; local audio is sent to the configured local/LAN engine only when transcription is requested. Native WAV playback was added afterward: actual Edge browser loaded the 4.25-second source without autoplay, play advanced currentTime, pause held state, seek reached 2 seconds, and clear removed the source. Audio was not manually auditioned; no editor-playhead sync is claimed.
 - Delta history is capped by 100 steps and an estimated 16 MiB serialized-size budget, with one newest oversized gesture retained. This is not a browser-heap benchmark.
 - Broad musical accuracy and third-party model/data licensing audits are not part of this UI integration. Existing third-party terms remain separate from the application license.
 

@@ -25,7 +25,7 @@ The engine uses the selected existing transcription backend. Neural backends sti
 - Local delta history preserves a whole gesture as one operation. It keeps up to 100 steps within an estimated 16 MiB serialized-history budget; one oversized newest gesture is retained so it can still be undone. This is not a measured browser-heap limit.
 - The note filter affects the view/selection only, not the take or export. Exported pitches are canonical GM in the editor and mapped once through the selected kit.
 - MIDI import is GM pitch, note-event-only, constant-tempo 4/4. Unsupported meter/tempo maps and unclosed notes are rejected. Controller/program metadata is not retained. Unknown pitches remain intact for GM output; a non-GM kit rejects unmapped pitches rather than silently changing them.
-- WAV is a read-only visual reference, not playback. Audio starts at zero seconds / the first beat. Source changes do not rewrite note placement.
+- WAV has native browser play/pause, volume and seek controls below the reference picker. Playback uses the same local or authenticated engine WAV, without autoplay or an extra upload. Clearing/changing the source stops playback and releases its object URL. Audio starts at zero seconds / the first beat; playback is not synchronized to the MIDI editor playhead. Source changes do not rewrite note placement.
 
 ## Limits and state
 

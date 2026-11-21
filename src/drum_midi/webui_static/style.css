@@ -92,3 +92,5 @@ a:hover { text-decoration-thickness:2px; }
 .processing-options input[type=checkbox] { cursor:pointer; accent-color:#f58b62; }
 #filter { max-width:190px; } #kit { max-width:210px; }
 #stage { height:clamp(390px,calc(100dvh - 530px),850px); }
+#wav-player { display:block; width:min(100%,540px); margin-top:12px; color-scheme:dark; }
+#wav-player[hidden] { display:none; }
