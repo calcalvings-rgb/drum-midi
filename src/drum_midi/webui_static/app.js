@@ -8,7 +8,7 @@ const model = new EditorState();
 const el = id => document.getElementById(id);
 const drumNames = {35:'Ac. kick',36:'Kick',37:'Side stick',38:'Snare',39:'Clap',40:'E. snare',41:'Low tom',42:'Closed hat',43:'Floor tom',44:'Pedal hat',45:'Low-mid tom',46:'Open hat',47:'Rack tom',48:'Hi-mid tom',49:'Crash',50:'High tom',51:'Ride',52:'China',53:'Ride bell',54:'Tambourine',55:'Splash',56:'Cowbell',57:'Crash 2',59:'Ride 2'};
 let token = '', renderedIds = [], roll, timewindow, waveform, dirty = false, savedSignature = '';
-let midiLoading=false,wavLoading=false,dropLoading=false,processing=false,sourceLoading=false;
+let midiLoading=false,wavLoading=false,dropLoading=false,processing=false,sourceLoading=false,filesLoading=false;
 let localAudio=null,uploadedAudio=null,sourceEpoch=0,gmMap={};
 function signature() {
   return JSON.stringify({bpm:model.bpm,notes:Object.values(model.notes).map(({key,when,duration,gain})=>({key,when,duration,gain})).sort((a,b)=>a.when-b.when||a.key-b.key||a.duration-b.duration||a.gain-b.gain)});
@@ -30,7 +30,7 @@ function focusNotes() {
 }
 function status(message, state='ready') {el('status').textContent=message;el('status').dataset.state=state;}
 function syncImportControls() {
-  const busy=midiLoading||wavLoading||dropLoading||processing||sourceLoading;
+  const busy=midiLoading||wavLoading||dropLoading||processing||sourceLoading||filesLoading;
   for(const id of ['midi','wav','drop-browse','drop-files'])el(id).disabled=busy||!token;
   el('clear-wave').disabled=busy||!waveform?.data;
   for(const id of ['file','refresh-files','method','preset','groove','flatten','velsmooth','protgrooves'])el(id).disabled=busy||!token;
@@ -178,11 +178,14 @@ async function jsonGet(path) {
   return value;
 }
 async function refreshFiles(prefer='') {
-  const selected=prefer||el('file').value;
-  const result=await jsonGet('/api/files');
-  el('file').replaceChildren(new Option(localAudio?`Local WAV: ${localAudio.name}`:'Choose engine audio or load a local WAV',''),...result.files.map(name=>new Option(name,name)));
-  if(result.files.includes(selected))el('file').value=selected;
-  syncImportControls();
+  if(filesLoading)return;
+  filesLoading=true;syncImportControls();
+  try {
+    const result=await jsonGet('/api/files');
+    const selected=prefer||el('file').value;
+    el('file').replaceChildren(new Option(localAudio?`Local WAV: ${localAudio.name}`:'Choose engine audio or load a local WAV',''),...result.files.map(name=>new Option(name,name)));
+    if(result.files.includes(selected))el('file').value=selected;
+  }finally{filesLoading=false;syncImportControls();}
 }
 async function chooseEngineAudio() {
   const name=el('file').value,epoch=++sourceEpoch;
@@ -205,7 +208,7 @@ async function chooseEngineAudio() {
   finally{sourceLoading=false;syncImportControls();}
 }
 async function transcribeSource() {
-  if(processing||sourceLoading||midiLoading||wavLoading||dropLoading)return;
+  if(processing||sourceLoading||filesLoading||midiLoading||wavLoading||dropLoading)return;
   if(!localAudio&&!el('file').value){status('Choose engine audio or load a WAV first.','error');return;}
   if(!mayReplace()){status('Transcription canceled. Current edits were kept.');return;}
   const before=signature(),bpm=model.bpm,local=localAudio;
@@ -342,7 +345,7 @@ async function init() {
   savedSignature=signature();render();setSnap();await refreshFiles();status('Engine connected. Load WAV to transcribe, or open GM drum MIDI to edit.');
   installFileDrop({
     zone:el('drop-zone'),picker:el('drop-files'),browse:el('drop-browse'),
-    isBusy:()=>midiLoading||wavLoading||dropLoading||processing||sourceLoading,
+    isBusy:()=>midiLoading||wavLoading||dropLoading||processing||sourceLoading||filesLoading,
     onError:message=>{dropFeedback(message,'error');status(message,'error');},
     onImport:async({midi,wav})=>{
       dropLoading=true;syncImportControls();dropFeedback('Loading files…','busy');
