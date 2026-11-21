@@ -49,6 +49,7 @@
   "vendor/gs-ui-components/gsuiTimewindow/gsuiTimewindow.js": "text/javascript; charset=utf-8",
   "vendor/gs-ui-components/gsuiToggle/gsuiToggle.css": "text/css; charset=utf-8",
   "vendor/gs-ui-components/gsuiToggle/gsuiToggle.js": "text/javascript; charset=utf-8",
+  "transport.mjs": "text/javascript; charset=utf-8",
   "model.mjs": "text/javascript; charset=utf-8",
   "waveform.mjs": "text/javascript; charset=utf-8",
   "dropzone.mjs": "text/javascript; charset=utf-8",

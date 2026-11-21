@@ -7,7 +7,7 @@ The approved editor is now served by the main `drum_midi.webui` entry point, not
 ## Evidence
 
 - Full Python suite after review fixes: 208 passed, 2 skipped, 3 existing librosa short-input warnings.
-- Frontend modules after playback addition: 32 tests passed, including seconds-to-beats conversion, flattened/unknown instrument handling, view-only filtering, delta history, invalid-edit rollback, drop validation and waveform timing.
+- Frontend modules after transport synchronization: 35 tests passed, including seconds-to-beats conversion, flattened/unknown instrument handling, view-only filtering, delta history, invalid-edit rollback, drop validation and waveform timing.
 - Real main-server browser loop: local synthetic WAV uploaded to the engine, trigger transcription returned 15 hits, editor loaded them at 90 BPM, physical drag snapped a hit by a quarter beat, Ctrl+Z restored it, and MixWave download exported all 15 hits while only 3 were visible through a filter.
 - The actual downloaded file was reopened independently. It is type 0, channel 10; note pitches match the selected kit mapping exactly once, positions/durations match the snapshot within one tick, and tempo is 89.999955 BPM (SMF rounding of 90 BPM).
 - New browser startup has no prototype demo button or `window.spike` hook.
@@ -21,6 +21,10 @@ The approved editor is now served by the main `drum_midi.webui` entry point, not
 - Browser error/unhandled-rejection arrays were empty in the recorded production workflows.
 
 Raw JSON, actual downloaded MIDI and real synthetic-data screenshots are retained in the task-specific scratch evidence folder. No private or licensed audio was used, no model API was called, and no new model/dependency installation was performed. Screenshot pixels are not claimed to have had a vision-model aesthetic review.
+
+## WAV transport synchronization
+
+Actual Edge/CDP checks: at120 BPM audio1s maps to beat2; physical ruler click at beat3 seeks to1.5s; Space plays and advances the playhead, second Space pauses; Space inside BPM input does not toggle playback. At60 BPM the paused audio time equals the playhead beat. Animation is scheduled only during playback and canceled on pause/end/error; native media seek/time events also update the cursor. No automatic viewport following or MIDI audio output is introduced. Unit tests cover conversion, clamping, frame cancellation and keyboard exclusions.
 
 ## WAV playback addition
 

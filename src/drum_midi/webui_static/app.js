@@ -2,6 +2,7 @@
 import { EditorState, snapStep } from './model.mjs';
 import { decodeWav, WaveformOverlay } from './waveform.mjs';
 import { installFileDrop } from './dropzone.mjs';
+import { bindTransport } from './transport.mjs';
 import { exportSnapshot, transcriptionToEditor, visibleNotes, visibleSelectedIds, requiresReplacementConfirmation } from './adapter.mjs';
 
 const model = new EditorState();
@@ -9,7 +10,7 @@ const el = id => document.getElementById(id);
 const drumNames = {35:'Ac. kick',36:'Kick',37:'Side stick',38:'Snare',39:'Clap',40:'E. snare',41:'Low tom',42:'Closed hat',43:'Floor tom',44:'Pedal hat',45:'Low-mid tom',46:'Open hat',47:'Rack tom',48:'Hi-mid tom',49:'Crash',50:'High tom',51:'Ride',52:'China',53:'Ride bell',54:'Tambourine',55:'Splash',56:'Cowbell',57:'Crash 2',59:'Ride 2'};
 let token = '', renderedIds = [], roll, timewindow, waveform, dirty = false, savedSignature = '';
 let midiLoading=false,wavLoading=false,dropLoading=false,processing=false,sourceLoading=false,filesLoading=false;
-let localAudio=null,uploadedAudio=null,sourceEpoch=0,gmMap={},playbackUrl='';
+let localAudio=null,uploadedAudio=null,sourceEpoch=0,gmMap={},playbackUrl='',transport;
 function signature() {
   return JSON.stringify({bpm:model.bpm,notes:Object.values(model.notes).map(({key,when,duration,gain})=>({key,when,duration,gain})).sort((a,b)=>a.when-b.when||a.key-b.key||a.duration-b.duration||a.gain-b.gain)});
 }
@@ -98,6 +99,7 @@ function render() {
     block.title=block.getAttribute('aria-label');
   }
   if(waveform)waveform.setBpm(model.bpm);
+  transport?.sync();
   for(const note of Object.values(model.notes))if(![...el('filter').options].some(o=>o.value===String(note.key)))el('filter').add(new Option(drumNames[note.key]||`MIDI ${note.key}`,String(note.key)));
   const end=extentBeats();
   roll.$changeDuration(Math.ceil(end/4)*4);
@@ -286,6 +288,7 @@ async function init() {
   roll.$setCallbacks(change);roll.$setData(model.notes);roll.$octaves(0,11);roll.$timedivision('4/4');
   timewindow=roll.querySelector('gsui-timewindow');
   waveform=new WaveformOverlay(timewindow);
+  transport=bindTransport({media:el('wav-player'),roll,getBpm:()=>model.bpm,onError:message=>status(message,'error')});
   timewindow.$setAttr('lineheight',24).$dispatch(GSEV_TIMEWINDOW_LINEHEIGHT,24);setPxPerBeat(88);
   const props=roll.querySelector('gsui-prop-select');props.setAttribute('props','gain:Velocity');
   props.querySelector('button').setAttribute('aria-label','Velocity lane');
@@ -297,6 +300,7 @@ async function init() {
   }
   roll.addEventListener('gsui',event=>{
     const d=event.detail;
+    if(d.$event===GSEV_TIMELINE_CHANGECURRENTTIME)transport.seek(Number(d.$args[0]));
     if(d.$event===GSEV_PIANOROLL_CHANGEKEYSPROPS) {
       const [prop,entries]=d.$args;
       if(prop==='gain')apply(()=>model.properties(entries));

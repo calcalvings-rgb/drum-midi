@@ -45,6 +45,7 @@
     "src/drum_midi/webui_static/index.html",
     "src/drum_midi/webui_static/model.mjs",
     "src/drum_midi/webui_static/style.css",
+    "src/drum_midi/webui_static/transport.mjs",
     "src/drum_midi/webui_static/vendor/VENDOR.json",
     "src/drum_midi/webui_static/vendor/gs-ui-components/LICENSE",
     "src/drum_midi/webui_static/vendor/gs-ui-components/gsui-constantes.js",
@@ -124,6 +125,7 @@
     "tests/test_webui.py",
     "tests/test_webui_assets.py",
     "tests/test_webui_integration.py",
+    "tests/transport.test.mjs",
     "tests/waveform.test.mjs",
     "tests/webui_frontend.test.cjs",
     "tools/update_source_manifest.py"
