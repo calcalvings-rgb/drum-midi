@@ -17,8 +17,10 @@ Drum transcription tools output note lists; you still spend hours dragging notes
 .venv\Scripts\python.exe -m pip install -r requirements-gui.txt
 .venv\Scripts\python.exe drum_midi.py
 
-# remote web UI (LAN)
-.venv\Scripts\python.exe -m drum_midi.webui --host 0.0.0.0 --port 8123 --dir PATH [--token X]
+# web editor / transcription engine
+.venv\Scripts\python.exe -m pip install -r requirements-web.txt
+.venv\Scripts\python.exe -m drum_midi.webui --host 127.0.0.1 --port 8123 --dir PATH
+# open the token URL printed by the server; use --host 0.0.0.0 for trusted LAN access
 ```
 
 Headless generation:
@@ -44,8 +46,10 @@ Headless generation:
 Synthetic fixtures: `python -m tests.make_fixtures`.
 
 Optional frontend renderer tests (Node test runner only, no npm install or build):
-`node --test tests/webui_frontend.test.cjs`. Node is not required to run the app.
+`node --test tests/*.test.mjs`. Node is not required to run the app.
 
 ## License & data
+
+GrooveForge application code is licensed under GNU AGPL version 3 (see `LICENSE`). Third-party components retain their original terms; see `THIRD_PARTY_NOTICES.md`. The web editor provides the current application source through its **Download source** link.
 
 No licensed groove-pack data ships in this repo. Statistics/mappings derived from commercially-licensed packs (e.g. Sleep Token II by MixWave, GetGood Drums) are kept local-only. The groove generator works from **statistics you derive yourself** — analyze MIDI you own, then pass the JSON path (see [Use your own MIDI library](docs/BACKENDS.md)).

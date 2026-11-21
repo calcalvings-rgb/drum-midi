@@ -1,19 +1,10 @@
-"""Remote web UI for the Drum-to-MIDI pipeline (stdlib-only, token auth).
+"""GrooveForge web editor and transcription engine (stdlib HTTP server).
 
-Serve a single-page control panel over HTTP so the pipeline can be driven from
-another device while FL Studio runs on the desktop. Bind to 0.0.0.0 for LAN
-access; every /api/* route requires the token (passed as ?token=...). The
-token is generated at startup unless DRUM_WEB_TOKEN is set.
-
-Endpoints:
-    GET  /                 control panel HTML
-    GET  /api/files        list audio files in the input dir
-    GET  /api/meta         available kits and transcribe methods
-    POST /api/run          {file, method, preset} -> {notes, count}
-    POST /api/export       {file, method, preset} -> writes .mid, returns link
-    GET  /api/export?path= download a written MIDI file
-
-Run:  python -m drum_midi.webui [--host 0.0.0.0] [--port 8123] [--dir PATH]
+The browser sends its private URL/session token in X-Auth-Token for every
+/api route. Public routes are the application assets and /source.zip.
+Legacy /api/run, /api/edit and /api/export remain for existing clients.
+The new editor uses /api/editor/import and /api/editor/export for per-tab
+note snapshots, and /api/audio for authenticated reference loading.
 """
 
 from __future__ import annotations
@@ -24,6 +15,7 @@ import json
 import os
 import secrets
 import shutil
+import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -34,8 +26,11 @@ from drum_midi.maps import DRUM_TYPES, PRESETS
 from drum_midi.midi_out import write_midi
 from drum_midi.transcribe import THRESHOLD_PRESETS, transcribe
 from drum_midi.web_editor import read_editor_midi, write_editor_midi
+from drum_midi.source_offer import build_source_archive
 
 AUDIO_EXTS = {".wav", ".wave", ".mp3", ".flac", ".ogg", ".m4a"}
+
+_RUN_LOCK = threading.Lock()
 
 MAX_JSON_BYTES = 8 * 1024 * 1024
 MAX_AUDIO_BYTES = 256 * 1024 * 1024
@@ -71,6 +66,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
         self.end_headers()
         self.wfile.write(body)
 
@@ -141,6 +137,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        if path == "/source.zip":
+            try:
+                return self._send(200, build_source_archive(), "application/zip")
+            except (OSError, ValueError, TypeError) as error:
+                return self._json({"error": "Source bundle unavailable; check the release source manifest"}, 503)
         if path == "/":
             return self._send_file("index.html")
         if path.startswith("/static/"):
@@ -241,6 +242,10 @@ class Handler(BaseHTTPRequestHandler):
         p = self._resolve(fn)
         if p is None:
             return self._deny("file not found")
+        if p.stat().st_size > MAX_AUDIO_BYTES:
+            return self._deny("Audio exceeds 256 MiB", 413)
+        if not _RUN_LOCK.acquire(blocking=False):
+            return self._deny("This engine is already transcribing; wait and retry", 409)
         try:
             sr, x = parse_audio(p) if p.suffix.lower() in {".wav", ".wave"} else parse_audio(p, decode_mp3=True)
             notes = transcribe(x, sr, method=body.get("method", "trigger"),
@@ -254,6 +259,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"count": len(notes), "notes": notes})
         except Exception as e:  # surface real errors to the UI
             return self._json({"error": f"{type(e).__name__}: {e}"}, 500)
+        finally:
+            _RUN_LOCK.release()
 
     def _edit(self, body):
         notes = getattr(self.server, "notes", None)

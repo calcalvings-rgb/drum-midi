@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {transcriptionToEditor, visibleNotes, requiresReplacementConfirmation} from '../src/drum_midi/webui_static/adapter.mjs';
+import {transcriptionToEditor, visibleNotes, visibleSelectedIds, requiresReplacementConfirmation} from '../src/drum_midi/webui_static/adapter.mjs';
 import {EditorState} from '../src/drum_midi/webui_static/model.mjs';
 const gm={kick:36,hat_closed:42,crash1:49};
 test('setting tempo in an empty editor does not prompt to replace nonexistent notes',()=>{
@@ -46,4 +46,11 @@ test('oversized loads are rejected before replacing the current take',()=>{
  const model=new EditorState();model.add(36,0,.25);
  assert.throws(()=>model.load(Array(50001),120,'oversized'));
  assert.equal(Object.keys(model.notes).length,1);
+});
+
+test('undo cannot leave an invisible instrument selected behind a filter',()=>{
+ const model=new EditorState();model.load([{key:36,when:0,duration:.25,gain:1},{key:42,when:1,duration:.25,gain:1}],120,'take');
+ model.select(['0']);model.move(['0'],.25,0);model.select([]);model.undo();
+ assert.deepEqual(visibleSelectedIds(model.notes,'42'),[]);
+ assert.equal(Object.keys(model.notes).length,2);
 });

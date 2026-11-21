@@ -2,7 +2,7 @@
 import { EditorState, snapStep } from './model.mjs';
 import { decodeWav, WaveformOverlay } from './waveform.mjs';
 import { installFileDrop } from './dropzone.mjs';
-import { transcriptionToEditor, visibleNotes, requiresReplacementConfirmation } from './adapter.mjs';
+import { transcriptionToEditor, visibleNotes, visibleSelectedIds, requiresReplacementConfirmation } from './adapter.mjs';
 
 const model = new EditorState();
 const el = id => document.getElementById(id);
@@ -76,6 +76,7 @@ function render() {
   if(!roll)return;
   for(const id of renderedIds)roll.$removeKey(id);
   const shown=visibleNotes(model.notes,el('filter').value);
+  model.select(visibleSelectedIds(model.notes,el('filter').value));
   roll.$setData(shown);
   renderedIds=Object.keys(shown);
   for(const [id,n] of Object.entries(shown)) {
@@ -114,7 +115,7 @@ function setSnap() {
   ui();status(el('snap').value==='off'?'Snap off. Imported timing stays intact.':`Snap ${el('snap').value}. Use Quantize selected to align existing hits.`);
 }
 function load(notes,bpm,name) {
-  model.load(notes,bpm,name);savedSignature=signature();render();focusNotes();
+  model.load(notes,bpm,name);el('filter').value='';savedSignature=signature();render();focusNotes();
 }
 function duplicate() {
   const ids=model.selected(),ns=ids.map(id=>model.notes[id]);if(!ns.length)return;

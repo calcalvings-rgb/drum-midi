@@ -14,6 +14,7 @@ export function transcriptionToEditor(notes,bpm,gm) {
   return {notes:result,warning:flattened?'Flattened cymbals are shown in the crash lane.':''};
 }
 export function requiresReplacementConfirmation(dirty,noteCount) { return dirty && noteCount > 0; }
+export function visibleSelectedIds(notes,pitch) {return Object.keys(visibleNotes(notes,pitch)).filter(id=>notes[id].selected);}
 export function visibleNotes(notes,pitch) {
   return pitch===''?notes:Object.fromEntries(Object.entries(notes).filter(([,note])=>note.key===Number(pitch)));
 }

@@ -85,3 +85,28 @@ def test_symlinked_audio_outside_the_input_directory_is_not_served(api):
     except OSError:pytest.skip("Host does not allow file symlinks")
     assert call("/api/audio?file=linked.wav")[0]==404
 
+
+def test_source_offer_is_public_and_matches_served_application(api):
+    import zipfile
+    call,_=api
+    code,headers,payload=call("/source.zip",token="")
+    assert code==200 and headers["Content-Type"]=="application/zip"
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        names=archive.namelist()
+        assert "grooveforge-source/src/drum_midi/webui_static/app.js" in names
+        assert not any(".env" in name or "superpowers" in name or name.endswith(".pth") for name in names)
+
+
+def test_transcription_is_not_started_twice_on_one_engine(api,monkeypatch):
+    from drum_midi import webui
+    call,folder=api;(folder/"take.wav").write_bytes(b"fixture")
+    entered=threading.Event();release=threading.Event();out=[]
+    monkeypatch.setattr(webui,"parse_audio",lambda p:(44100,None))
+    def backend(*a,**kw):
+        entered.set();assert release.wait(5);return []
+    monkeypatch.setattr(webui,"transcribe",backend)
+    first=threading.Thread(target=lambda:out.append(call("/api/run",{"file":"take.wav"})))
+    first.start();assert entered.wait(5)
+    try:assert call("/api/run",{"file":"take.wav"})[0]==409
+    finally:release.set();first.join(5)
+    assert out[0][0]==200
