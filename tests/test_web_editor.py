@@ -57,3 +57,16 @@ def test_zero_velocity_is_silent_not_a_spurious_quiet_note():
 def test_import_rejects_unsupported_tempo_or_meter_instead_of_changing_it(messages):
     midi=mido.MidiFile();midi.tracks.append(mido.MidiTrack(messages));out=io.BytesIO();midi.save(file=out)
     with pytest.raises(ValueError):read_editor_midi(out.getvalue())
+
+def test_delayed_first_tempo_cannot_retime_default_tempo_prefix():
+    midi=mido.MidiFile();track=mido.MidiTrack();midi.tracks.append(track)
+    track.extend([mido.Message('note_on',note=36,velocity=100),mido.MetaMessage('set_tempo',tempo=1000000,time=480),mido.Message('note_off',note=36,time=960)])
+    output=io.BytesIO();midi.save(file=output)
+    with pytest.raises(ValueError,match='tempo'):read_editor_midi(output.getvalue())
+
+@pytest.mark.parametrize('division,tempo',[(0,500000),(480,0),(-24,500000)])
+def test_invalid_midi_clock_is_rejected(division,tempo):
+    midi=mido.MidiFile(ticks_per_beat=division);track=mido.MidiTrack();midi.tracks.append(track)
+    track.extend([mido.MetaMessage('set_tempo',tempo=tempo),mido.Message('note_on',note=36,velocity=100),mido.Message('note_off',note=36,time=480)])
+    output=io.BytesIO();midi.save(file=output)
+    with pytest.raises(ValueError):read_editor_midi(output.getvalue())

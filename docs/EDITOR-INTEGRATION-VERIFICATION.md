@@ -6,8 +6,8 @@ The approved editor is now served by the main `drum_midi.webui` entry point, not
 
 ## Evidence
 
-- Full Python suite: 202 passed, 2 skipped, 3 existing librosa short-input warnings.
-- Frontend modules: 26 tests passed, including seconds-to-beats conversion, flattened/unknown instrument handling, view-only filtering, delta history, invalid-edit rollback, drop validation and waveform timing.
+- Full Python suite after review fixes: 208 passed, 2 skipped, 3 existing librosa short-input warnings.
+- Frontend modules after review fixes: 30 tests passed, including seconds-to-beats conversion, flattened/unknown instrument handling, view-only filtering, delta history, invalid-edit rollback, drop validation and waveform timing.
 - Real main-server browser loop: local synthetic WAV uploaded to the engine, trigger transcription returned 15 hits, editor loaded them at 90 BPM, physical drag snapped a hit by a quarter beat, Ctrl+Z restored it, and MixWave download exported all 15 hits while only 3 were visible through a filter.
 - The actual downloaded file was reopened independently. It is type 0, channel 10; note pitches match the selected kit mapping exactly once, positions/durations match the snapshot within one tick, and tempo is 89.999955 BPM (SMF rounding of 90 BPM).
 - New browser startup has no prototype demo button or `window.spike` hook.
@@ -48,4 +48,11 @@ Liveliness and quality: PASS within this integration scope. Original rhythm/iden
 
 ## Review
 
-One fresh read-only review was requested for commits 59f329a..2c8a873. Final findings and their disposition are recorded after its return; no merge or push is performed without owner instruction.
+The one fresh review of 59f329a..2c8a873 found three Important issues and one Minor. All were reproduced and addressed:
+
+1. Delayed first tempo changes now account for the effective default tempo at tick zero and reject a variable map instead of retiming it.
+2. Export serializes only key/when/duration/gain. A 50000-note regression verifies the request fits the 8 MiB contract; internal GridSound fields are excluded.
+3. Paired imports decode WAV before committing MIDI. Automated callback tests and a real browser drop of valid MIDI plus corrupt WAV preserve dirty notes, take name, waveform and available undo; no MIDI request occurs on WAV failure.
+4. Zero tempo, zero PPQN and unsupported SMPTE clocks are validated before division. Actual HTTP tests return structured JSON 400 instead of disconnecting.
+
+Reviewer declined full pytest, broad audio-model evaluation, vendor-wide provenance audit and the parent-owned visual/browser gate. Parent ran the full suite and actual browser workflow; broad inference/model provenance remains outside this UI task. No findings are deferred. No merge or push is performed without owner instruction.

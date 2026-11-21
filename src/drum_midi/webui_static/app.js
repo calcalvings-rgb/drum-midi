@@ -2,7 +2,7 @@
 import { EditorState, snapStep } from './model.mjs';
 import { decodeWav, WaveformOverlay } from './waveform.mjs';
 import { installFileDrop } from './dropzone.mjs';
-import { transcriptionToEditor, visibleNotes, visibleSelectedIds, requiresReplacementConfirmation } from './adapter.mjs';
+import { exportSnapshot, transcriptionToEditor, visibleNotes, visibleSelectedIds, requiresReplacementConfirmation } from './adapter.mjs';
 
 const model = new EditorState();
 const el = id => document.getElementById(id);
@@ -144,12 +144,12 @@ async function importMidi(file) {
   }catch(error){status(error.message,'error');return false;}
   finally{midiLoading=false;el('midi').value='';syncImportControls();}
 }
-async function importReferenceWav(file,{engine=false}={}) {
+async function importReferenceWav(file,{engine=false,peaks:stagedPeaks=null}={}) {
   if(!file)return false;
   wavLoading=true;syncImportControls();
   status('Decoding WAV locally and preparing waveform…');
   try {
-    const peaks=await decodeWav(file);
+    const peaks=stagedPeaks||await decodeWav(file);
     waveform.setSource(peaks,file.name);waveform.setBpm(model.bpm);
     if(!engine){localAudio=file;uploadedAudio=null;el('file').value='';sourceEpoch++;el('audio-source').textContent=`Local WAV: ${file.name}. Transcription sends it to this engine.`;}
     el('wave-info').textContent=`${file.name} · ${peaks.duration.toFixed(3)}s · display normalized · starts at 0s`;
@@ -163,7 +163,7 @@ async function exportMidi() {
   const exportedSignature=signature();
   el('export').disabled=true;status('Creating MIDI download…');
   try {
-    const response=await request('/api/editor/export',JSON.stringify({bpm:model.bpm,kit:el('kit').value,notes:Object.values(model.notes)}));
+    const response=await request('/api/editor/export',JSON.stringify(exportSnapshot(model,el('kit').value)));
     const url=URL.createObjectURL(await response.blob()),a=document.createElement('a');
     a.href=url;a.download='grooveforge-edited.mid';a.click();
     setTimeout(()=>URL.revokeObjectURL(url),5000);savedSignature=exportedSignature;dirty=signature()!==savedSignature;
@@ -236,6 +236,17 @@ async function transcribeSource() {
     status(converted.notes.length?`${converted.notes.length} hits ready. ${converted.warning}`:'No hits detected. Try another engine or threshold preset.');
   }catch(error){status('Transcription failed: '+error.message,'error');}
   finally{processing=false;syncImportControls();}
+}
+
+async function importDroppedFiles({midi,wav}) {
+      dropLoading=true;syncImportControls();dropFeedback('Loading files…','busy');
+      try {
+        const peaks=midi&&wav?await decodeWav(wav):null;
+        if(midi&&!await importMidi(midi)){dropFeedback(el('status').textContent,el('status').dataset.state);return;}
+        if(wav&&!await importReferenceWav(wav,{peaks})){dropFeedback(el('status').textContent,'error');return;}
+        dropFeedback(`Loaded ${[midi?.name,wav?.name].filter(Boolean).join(' + ')}.`);
+      }catch(error){status('Import failed: '+error.message,'error');dropFeedback(el('status').textContent,'error');}
+      finally{dropLoading=false;syncImportControls();}
 }
 
 async function init() {
@@ -347,14 +358,7 @@ async function init() {
     zone:el('drop-zone'),picker:el('drop-files'),browse:el('drop-browse'),
     isBusy:()=>midiLoading||wavLoading||dropLoading||processing||sourceLoading||filesLoading,
     onError:message=>{dropFeedback(message,'error');status(message,'error');},
-    onImport:async({midi,wav})=>{
-      dropLoading=true;syncImportControls();dropFeedback('Loading files…','busy');
-      try {
-        if(midi&&!await importMidi(midi)){dropFeedback(el('status').textContent,el('status').dataset.state);return;}
-        if(wav&&!await importReferenceWav(wav)){dropFeedback(el('status').textContent,'error');return;}
-        dropFeedback(`Loaded ${[midi?.name,wav?.name].filter(Boolean).join(' + ')}.`);
-      }finally{dropLoading=false;syncImportControls();}
-    },
+    onImport:importDroppedFiles,
   });
   syncImportControls();
 

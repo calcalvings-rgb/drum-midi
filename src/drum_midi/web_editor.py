@@ -28,16 +28,24 @@ def read_editor_midi(payload: bytes) -> dict:
     midi = mido.MidiFile(file=io.BytesIO(payload))
     if midi.type == 2:
         raise ValueError('Type-2 multi-song MIDI is not supported')
-    tempos = {msg.tempo for track in midi.tracks for msg in track if msg.type == 'set_tempo'}
-    meters = {(msg.numerator, msg.denominator) for track in midi.tracks for msg in track if msg.type == 'time_signature'}
-    if len(tempos) > 1:
-        raise ValueError('Variable-tempo MIDI is not supported; import a constant-tempo take')
-    if meters - {(4, 4)}:
-        raise ValueError('Only constant 4/4 MIDI is supported by this editor')
-    bpm = float(mido.tempo2bpm(next(iter(tempos), 500000)))
+    if midi.ticks_per_beat <= 0:
+        raise ValueError('MIDI requires positive PPQN timing; SMPTE timing is unsupported')
+    merged = list(mido.merge_tracks(midi.tracks))
+    tick, tempo = 0, 500000
+    for msg in merged:
+        tick += msg.time
+        if msg.type == 'set_tempo':
+            if msg.tempo <= 0:
+                raise ValueError('MIDI tempo must be positive')
+            if tick > 0 and msg.tempo != tempo:
+                raise ValueError('Variable-tempo MIDI is not supported; import a constant-tempo take')
+            tempo = msg.tempo
+        if msg.type == 'time_signature' and (msg.numerator, msg.denominator) != (4, 4):
+            raise ValueError('Only constant 4/4 MIDI is supported by this editor')
+    bpm = float(mido.tempo2bpm(tempo))
     _number(bpm, 20, 400, 'BPM')
     active, notes, tick = defaultdict(deque), [], 0
-    for msg in mido.merge_tracks(midi.tracks):
+    for msg in merged:
         tick += msg.time
         if msg.type == 'note_on' and msg.velocity > 0:
             active[(msg.channel, msg.note)].append((tick, msg.velocity))

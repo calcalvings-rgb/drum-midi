@@ -29,7 +29,7 @@ The engine uses the selected existing transcription backend. Neural backends sti
 
 ## Limits and state
 
-MIDI/JSON requests: 8 MiB. Audio upload/reference: 256 MiB. Up to 50000 notes and 100000 beats per onset/duration. Browser decoding can temporarily use more memory than the WAV file. File drops validate at most one MIDI and one WAV before starting; canceling replacement skips its paired WAV. If MIDI imports but WAV decoding fails, the imported take remains and the previous reference/error state is shown; paired decoding is not a transaction.
+MIDI/JSON requests: 8 MiB. Audio upload/reference: 256 MiB. Up to 50000 notes and 100000 beats per onset/duration. Browser decoding can temporarily use more memory than the WAV file. File drops validate at most one MIDI and one WAV before starting; canceling replacement skips its paired WAV. For paired drops, WAV decoding is staged before replacing MIDI. If decoding or MIDI parsing fails, the existing take, undo history and reference remain intact. Canceling replacement also keeps the original pair.
 
 Notes and history are per browser tab and vanish on reload. Export before refreshing. Replacing dirty notes prompts first; a result finishing after newer edits also asks before replacement. One engine transcription runs at a time, returning 409 for a concurrent request. Legacy server-side note endpoints remain shared and should not be edited from multiple clients simultaneously.
 

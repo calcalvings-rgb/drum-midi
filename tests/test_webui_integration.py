@@ -110,3 +110,13 @@ def test_transcription_is_not_started_twice_on_one_engine(api,monkeypatch):
     try:assert call("/api/run",{"file":"take.wav"})[0]==409
     finally:release.set();first.join(5)
     assert out[0][0]==200
+
+@pytest.mark.parametrize('division,tempo',[(0,500000),(480,0)])
+def test_invalid_midi_clock_returns_json_400(api,division,tempo):
+    import mido
+    call,_=api;midi=mido.MidiFile(ticks_per_beat=division);track=mido.MidiTrack();midi.tracks.append(track)
+    track.extend([mido.MetaMessage('set_tempo',tempo=tempo),mido.Message('note_on',note=36,velocity=100),mido.Message('note_off',note=36,time=480)])
+    output=io.BytesIO();midi.save(file=output)
+    code,headers,body=call('/api/editor/import',output.getvalue(),content_type='audio/midi')
+    assert code==400 and headers['Content-Type'].startswith('application/json')
+    assert json.loads(body)['error']

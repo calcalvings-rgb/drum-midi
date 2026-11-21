@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {transcriptionToEditor, visibleNotes, visibleSelectedIds, requiresReplacementConfirmation} from '../src/drum_midi/webui_static/adapter.mjs';
+import {exportSnapshot,transcriptionToEditor, visibleNotes, visibleSelectedIds, requiresReplacementConfirmation} from '../src/drum_midi/webui_static/adapter.mjs';
 import {EditorState} from '../src/drum_midi/webui_static/model.mjs';
 const gm={kick:36,hat_closed:42,crash1:49};
 test('setting tempo in an empty editor does not prompt to replace nonexistent notes',()=>{
@@ -53,4 +53,12 @@ test('undo cannot leave an invisible instrument selected behind a filter',()=>{
  model.select(['0']);model.move(['0'],.25,0);model.select([]);model.undo();
  assert.deepEqual(visibleSelectedIds(model.notes,'42'),[]);
  assert.equal(Object.keys(model.notes).length,2);
+});
+
+test('maximum take exports only contract fields and stays within HTTP budget',()=>{
+ const model=new EditorState();model.load(Array.from({length:50000},(_,i)=>({key:36,when:i*.25,duration:.125,gain:.8})),120,'large');
+ const result=exportSnapshot(model,'gm');
+ assert.deepEqual(Object.keys(result.notes[0]),['key','when','duration','gain']);
+ assert.ok(Buffer.byteLength(JSON.stringify(result))<8*1024*1024);
+ assert.equal(result.notes.length,50000);
 });

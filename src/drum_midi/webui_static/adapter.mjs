@@ -18,3 +18,4 @@ export function visibleSelectedIds(notes,pitch) {return Object.keys(visibleNotes
 export function visibleNotes(notes,pitch) {
   return pitch===''?notes:Object.fromEntries(Object.entries(notes).filter(([,note])=>note.key===Number(pitch)));
 }
+export function exportSnapshot(model,kit) {return {bpm:model.bpm,kit,notes:Object.values(model.notes).map(({key,when,duration,gain})=>({key,when,duration,gain}))};}
