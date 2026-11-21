@@ -1,0 +1,102 @@
+"use strict";
+
+class gsuiDropdown extends gsui0ne {
+	constructor() {
+		super( {
+			$tagName: "gsui-dropdown",
+			$attributes: { popover: true },
+		} );
+		this.$onclick( this.#onclick.bind( this ) );
+	}
+
+	// .........................................................................
+	#onclick( e ) {
+		const act = $.$dataProp( e.target );
+
+		if ( act ) {
+			this.$dispatch( GSEV_DROPDOWN_CLICK, act );
+		}
+		if ( ( act || $.$href( e.target ) ) && this.$hasAttr( "clicknclose" ) ) {
+			this.$togglePopover( false );
+		}
+	}
+}
+
+$.$define( "gsui-dropdown", gsuiDropdown );
+
+// .............................................................................
+class gsuiDropdownOption extends gsui0ne {
+	#link = $noop;
+	#radio = $noop;
+
+	// .........................................................................
+	constructor() {
+		super( {
+			$tagName: "gsui-dropdown-option",
+			$template: $.$label( null,
+				$.$elem( "gsui-icon" ),
+				$.$div( null,
+					$.$bold(),
+					$.$span(),
+				),
+			),
+			$elements: {
+				$name: "b",
+				$desc: "span",
+				$icon: "gsui-icon",
+			},
+		} );
+	}
+
+	// .........................................................................
+	static get observedAttributes() {
+		return [ "href", "target", "value", "icon", "name", "desc", "radio" ];
+	}
+	$attributeChanged( prop, val ) {
+		switch ( prop ) {
+			case "href": this.#setHref( val ); break;
+			case "value": this.#setValue( val ); break;
+			case "radio": this.#setRadio( val ); break;
+			case "target": this.#setTarget( val ); break;
+			case "name": this.$elements.$name.$text( val ); break;
+			case "desc": this.$elements.$desc.$text( val ); break;
+			case "icon": this.$elements.$icon.$setAttr( "icon", val ); break;
+		}
+	}
+
+	// .........................................................................
+	#setHref( h ) {
+		if ( h ) {
+			this.#link = $( "<a>" )
+				.$setAttr( "href", h )
+				.$setAttr( "target", this.$getAttr( "target" ) )
+				.$dataProp( this.$element.$dataProp() )
+				.$appendTo( this );
+		} else {
+			this.#link.$remove();
+			this.#link = $noop;
+		}
+	}
+	#setTarget( trg ) {
+		this.#link.$setAttr( "target", trg );
+	}
+	#setValue( val ) {
+		this.#link.$dataProp( val );
+		this.$element.$dataProp( val );
+		this.#radio.$setAttr( "value", val );
+	}
+	#setRadio( name ) {
+		if ( !name ) {
+			this.#radio.$remove();
+			this.#radio = $noop;
+		} else if ( this.#radio.$size() ) {
+			this.#radio.$setAttr( "name", name );
+		} else {
+			this.#radio = $( "<input>" )
+				.$setAttr( { type: "radio", name, value: this.$getAttr( "value" ) } )
+				.$prependTo( this.$element );
+		}
+	}
+}
+
+$.$define( "gsui-dropdown-option", gsuiDropdownOption );

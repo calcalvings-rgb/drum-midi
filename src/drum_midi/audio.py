@@ -38,7 +38,22 @@ def _resample(mono: np.ndarray, sample_rate: int) -> np.ndarray:
 
 def load_wav(path: str | Path) -> tuple[int, np.ndarray]:
     """Read PCM WAV, mix channels to mono, and resample to 44.1 kHz."""
-    with wave.open(str(path), "rb") as wav:
+    try:
+        handle = wave.open(str(path), "rb")
+    except wave.Error:
+        from scipy.io import wavfile
+        sample_rate, data = wavfile.read(str(path))
+        if data.dtype.kind != "f":
+            raise ValueError("Unsupported WAV encoding")
+        if not np.isfinite(data).all():
+            raise ValueError("WAV contains non-finite samples")
+        mono = np.asarray(data, dtype=np.float64)
+        if mono.ndim == 2:
+            mono = mono.mean(axis=1)
+        if mono.ndim != 1:
+            raise ValueError("Invalid WAV channel data")
+        return TARGET_SR, _resample(mono, sample_rate)
+    with handle as wav:
         if wav.getcomptype() != "NONE":
             raise ValueError(f"Unsupported WAV compression: {wav.getcomptype()}")
         channels = wav.getnchannels()

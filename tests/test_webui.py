@@ -121,7 +121,7 @@ def test_upload_saves_audio_file(tmp_path):
     h.server.input_dir = str(tmp_path)
     h._json = lambda obj, code=200: (obj, code)
     h.path = "/api/upload?name=kick.wav"
-    h.headers = type("H", (), {"get": lambda self, k, d=None: "4"})()
+    h.headers = {"Content-Length": "4"}
     h.rfile = type("R", (), {"read": lambda self, n: b"RIFF"})()
     obj, code = h._upload()
     assert code == 200 and obj["file"] == "kick.wav"
@@ -133,7 +133,7 @@ def test_upload_sanitizes_path_traversal(tmp_path):
     h.server.input_dir = str(tmp_path)
     h._json = lambda obj, code=200: (obj, code)
     h.path = "/api/upload?name=../../../../evil.wav"
-    h.headers = type("H", (), {"get": lambda self, k, d=None: "1"})()
+    h.headers = {"Content-Length": "1"}
     h.rfile = type("R", (), {"read": lambda self, n: b"x"})()
     obj, code = h._upload()
     assert code == 200 and obj["file"] == "evil.wav"

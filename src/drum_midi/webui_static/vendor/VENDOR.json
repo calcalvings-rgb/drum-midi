@@ -1,0 +1,13 @@
+{
+  "gs-ui-components": {
+    "commit": "350f079212648cf8786749c801453404f75ffb02",
+    "source": "https://github.com/gridsound/gs-ui-components",
+    "license": "AGPL-3.0"
+  },
+  "gs-utils": {
+    "commit": "66172d129dda482315da6e5ac67d06a422d7abfb",
+    "source": "https://github.com/gridsound/gs-utils",
+    "license": "AGPL-3.0"
+  },
+  "modified_vendor_files": []
+}

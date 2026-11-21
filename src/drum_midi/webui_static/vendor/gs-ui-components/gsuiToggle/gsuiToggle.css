@@ -1,0 +1,15 @@
+gsui-toggle {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 8px;
+	outline: 0;
+	cursor: var( --gsuiCursor-pointer );
+	color: var( --gsui-toggle-on );
+	transition: color .25s;
+
+	&[ off ] {
+		color: var( --gsui-toggle-off );
+	}
+}
